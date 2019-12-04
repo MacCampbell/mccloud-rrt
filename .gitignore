@@ -1,0 +1,9 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+/genome/
+/outputs/
+/bams/
+*.html
+*.out
