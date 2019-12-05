@@ -2,7 +2,7 @@
 #From: https://github.com/btmartin721/raxml_ascbias/blob/master/ascbias.py
 # To run:
 # mccloud-rrt mac$ source activate py3; ./103-remove-invariant.py -p outputs/100/test.phy -o outputs/100/test.asc.phy; source deactivate
-
+# mccloud-rrt mac$ source activate py3; ./103-remove-invariant.py -p outputs/100/test2.phy -o outputs/100/test2.asc.phy; source deactivate;
 
 #set up: conda create --name py3 python=3.5
 #Macs-MBP-2:temp mac$ source activate py3

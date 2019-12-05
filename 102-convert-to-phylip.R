@@ -20,7 +20,16 @@ genos<-read_tsv(file=paste(dir,file, sep=""), col_names = FALSE)
 labels<-read_tsv(file=bamlist, col_names = FALSE) %>% 
   mutate(Sample=gsub("bams/","",X1)) %>% select(Sample)
 labels$Sample<-gsub("_RA.sort.flt.bam","",labels$Sample)
-  
+
+#Now, we know about two inversion regions omy05 and omy20. Omy05 runs from 27001895-81791946,
+#Omy20 runs from 5446054-18985808 Pearse et al. (2019). So, let's filter those out
+# omy05<-genos %>% filter(X1 == "omy05" &  X2 >= 27001895 & X2 <= 81791946) (7393 variants)
+# Removes 9100 sites in our test data.
+genos<-genos %>% mutate(Site=paste(X1, X2, sep="-"))
+omy05<-genos %>% filter(X1 == "omy05" &  X2 >= 27001895 & X2 <= 81791946) %>% mutate(Site=paste(X1,X2,sep="-")) %>% select(Site)
+omy20<-genos %>% filter(X1 == "omy20" &  X2 >= 5446054  & X2 <= 18985808) %>% mutate(Site=paste(X1,X2,sep="-")) %>% select(Site)
+genos<-genos %>% filter(!Site %in% omy05$Site) %>% filter(!Site %in% omy20$Site) %>% select(-Site)
+
 seq<-select(genos, -1:-2)
 colnames(seq)<-labels$Sample
 seq<-seq[1:(length(seq)-1)] #dropping an empty column
