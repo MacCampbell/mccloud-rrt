@@ -13,7 +13,7 @@
 
 #Job level
 
-#SBATCH --partition=hi
+#SBATCH --partition=med
 #SBATCH --nodes=3
 #SBATCH --ntasks-per-node=8
 #SBATCH --ntasks=24
