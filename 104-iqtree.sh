@@ -3,7 +3,7 @@
 # Mac says: I have no idea why this is here.
 
 # Name of the job 
-#SBATCH -J index
+#SBATCH -J iqtree
 
 #Email myself
 #SBATCH --mail-user=maccampbell@ucdavis.edu
@@ -31,5 +31,5 @@ module load benchmarks
 # The main job executable to run: note the use of srun before it
 # IQ-Tree output   --prefix STRING      Prefix for all output files (default: aln/partition)
 # Using this base path_to_iqtree -s test.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
-# Usually it automatically selects the number of threads, as opposed to -T 24
-srun /home/maccamp/bin/iqtree -s outputs/100/test3.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
+# Can automatically select the number of cores with -nt
+srun /home/maccamp/bin/iqtree -nt -s outputs/100/test3.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000

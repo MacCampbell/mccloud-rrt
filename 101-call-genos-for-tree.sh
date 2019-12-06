@@ -3,7 +3,7 @@
 # Mac says: I have no idea why this is here.
 
 # Name of the job 
-#SBATCH -J index
+#SBATCH -J angsdgenos
 
 #Email myself
 #SBATCH --mail-user=maccampbell@ucdavis.edu

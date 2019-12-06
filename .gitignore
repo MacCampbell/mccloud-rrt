@@ -5,6 +5,7 @@
 /genome/
 /outputs/
 /bams/
+/data/
 *.html
 *.out
 *.output
