@@ -37,5 +37,7 @@ module load benchmarks
 #srun angsd -P 24 -b bamlists/test.bamlist -minInd 16 -ref genome/omyV6Chr.fasta -out outputs/100/test -minMapQ 30 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 0 -SNP_pval 1e-6 -doGeno 4 -doPost 1 > outputs/100/101.out 2> outputs/100/101.err
 
 #for second test data set
-srun angsd -P 24 -b bamlists/test2.bamlist -minInd 46 -ref genome/omyV6Chr.fasta -out outputs/100/test2 -minMapQ 30 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 0 -SNP_pval 1e-6 -doGeno 4 -doPost 1 > outputs/100/101.out 2> outputs/100/101.err
+#srun angsd -P 24 -b bamlists/test2.bamlist -minInd 46 -ref genome/omyV6Chr.fasta -out outputs/100/test2 -minMapQ 30 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 0 -SNP_pval 1e-6 -doGeno 4 -doPost 1 > outputs/100/101.out 2> outputs/100/101.err
 
+#for third test data set
+srun angsd -P 24 -b bamlists/test3.bamlist -minInd 42 -ref genome/omyV6Chr.fasta -out outputs/100/test3 -minMapQ 30 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 0 -SNP_pval 1e-6 -doGeno 4 -doPost 1 > outputs/100/101.out 2> outputs/100/101.err

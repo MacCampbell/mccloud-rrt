@@ -26,7 +26,14 @@ test2.bamlist - test.bamlist plus:
   2 from Edson Creek based on size
   2 from Moosehead (one not present due to low coverage)   
   MRRT totals 8   
-  
+
+test3.bamlist - like test2 but.   
+   Fixed the GLRT dismal collections in bams and bamlist (only two included previously)
+   Dropped KRNB_UCHG_02
+   Dropped KRNB_CHGC_02
+   Dropped DryCreek REDB_DRYC_01_RA.sort.flt.bam REDB_DRYC_03_RA.sort.flt.bam (Questions about recent movement)?    
+   Dropped Parker Creek
+
 ## 100 Series
 1. 101-call-genos-for-tree.sh   
 2. 102-convert-to-phylip.R   
