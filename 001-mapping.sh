@@ -36,10 +36,10 @@ module load benchmarks
 #	bwa mem ../ref_genome/omyV6Chr.fasta CAGT_ASHF_01_RA.fastq CAGT_ASHF_01_RB.fastq | samtools view -Sb - | samtools sort - -o CAGT_ASHF_01_RA.sort.bam 
 # samtools view -f 0x2 -b CAGT_ASHF_01_RA.sort.bam | samtools rmdup - CAGT_ASHF_01_RA.sort.flt.bam
 
-srun bwa mem genome/omyV6Chr.fasta data/GACR_10_R1.fastq.gz data/GACR_10_R2.fastq.gz	 | samtools view -Sb | samtools sort - -o bams/LCT_GACR_10_R1.sort.bam	
+srun bwa mem genome/omyV6Chr.fasta data/GACR_10_R1.fastq.gz data/GACR_10_R2.fastq.gz | samtools view -Sb | samtools sort - -o bams/LCT_GACR_10_R1.sort.bam	
 srun samtools view -f 0x2 -b bams/LCT_GACR_10_R1.sort.bam	| samtools rmdup - bams/LCT_GACR_10_R1.sort.flt.bam
 
 #Boy I should parallelize this, but, naahhh. It's Friday. Now for PPP1_01_R1.fastq.gz
-srun bwa mem genome/omyV6Chr.fasta data/PPP1_01_R1.fastq.gz data/PPP1_02_R1.fastq.gz	 | samtools view -Sb | samtools sort - -o bams/PCT_PPP1_01_R1.sort.bam	
+srun bwa mem genome/omyV6Chr.fasta data/PPP1_01_R1.fastq.gz data/PPP1_02_R1.fastq.gz | samtools view -Sb | samtools sort - -o bams/PCT_PPP1_01_R1.sort.bam	
 srun samtools view -f 0x2 -b bams/PCT_PPP1_01_R1.sort.bam	| samtools rmdup - bams/PCT_PPP1_01_R1.sort.flt.bam
 
