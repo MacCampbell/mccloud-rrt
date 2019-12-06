@@ -39,4 +39,6 @@ test3.bamlist - like test2 but.
 2. 102-convert-to-phylip.R   
 At this point, converting heterozygous sites to ambiguities leads to sites considered invariant (121883 in the test data set out of 221576).  
 3. 103-remove-invariant.py - produces a *.asc.phy file with the invariant sites removed for concatenated analysis with ascertainment bias correction.  
-4. 104 - TBD.  To run SVDQuartets, we need a nexus block and PAUP*. Doing this by hand at this time, see test.nex. Also, IQ-TREE webserver has a RAM limit I hit with test2 (51 inds)
+4. 104-iq-tree.sh - basic script to run concatenated analysis with IQ-TREE including ascertainment bias correction and 1000 rapid bootstraps with GTR+G(4).  
+
+TBD.  To run SVDQuartets, we need a nexus block and PAUP*. Doing this by hand at this time, see test.nex. Also, IQ-TREE webserver has a RAM limit I hit with test2 (51 inds)
