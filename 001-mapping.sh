@@ -20,8 +20,8 @@
 #SBATCH --time=3-01:00:00 #run for three days and an hour
 
 # Standard out and Standard Error output files with the job number in the name.
-#SBATCH -o bench-%j.output
-#SBATCH -e bench-%j.output
+#SBATCH -o bench-%j.out
+#SBATCH -e bench-%j.err
 
 # hostname is just for debugging
 hostname

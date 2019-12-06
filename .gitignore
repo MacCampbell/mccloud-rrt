@@ -8,5 +8,6 @@
 /data/
 *.html
 *.out
+*.err
 *.output
 
