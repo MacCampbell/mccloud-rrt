@@ -13,10 +13,10 @@
 
 #Job level
 
-#SBATCH --partition=med
+#SBATCH --partition=bigmem
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=8
-#SBATCH --ntasks=8
+#SBATCH --ntasks-per-node=1
+#SBATCH --ntasks=1
 #SBATCH --time=3-01:00:00 #run for three days and an hour
 
 # Standard out and Standard Error output files with the job number in the name.
