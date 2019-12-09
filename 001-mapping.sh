@@ -20,6 +20,9 @@
 #SBATCH --ntasks=24
 #SBATCH --time=3-01:00:00 #run for three days and an hour
 
+#Memory allocation
+#SBATCH --mem=32G
+
 # Standard out and Standard Error output files with the job number in the name.
 #SBATCH -o bench-%j.out
 #SBATCH -e bench-%j.err
