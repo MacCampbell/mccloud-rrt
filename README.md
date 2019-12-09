@@ -34,6 +34,8 @@ test3.bamlist - like test2 but.
    Dropped DryCreek REDB_DRYC_01_RA.sort.flt.bam REDB_DRYC_03_RA.sort.flt.bam (Questions about recent movement)?    
    Dropped Parker Creek
 
+test4.bamlist - added LCT_GACR_10_R1.sort.flt.bam and PCT_PPP1_01_R1.sort.flt.bam for outgroups
+
 ## 100 Series
 1. 101-call-genos-for-tree.sh   
 2. 102-convert-to-phylip.R   
