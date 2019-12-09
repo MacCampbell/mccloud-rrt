@@ -15,9 +15,10 @@
 #Generic here
 
 #SBATCH --partition=med
-#SBATCH --nodes=3
-#SBATCH --ntasks-per-node=8
-#SBATCH --ntasks=24
+#SBATCH --nodes=1
+# #SBATCH --ntasks-per-node=8
+# #SBATCH --ntasks=24
+#SBATCH --ntasks=1
 #SBATCH --time=3-01:00:00 #run for three days and an hour
 
 #Memory allocation
