@@ -1,0 +1,54 @@
+---
+title: "106-neighbor-net"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Phylogenetic Network
+A low-hanging fruit may be to try a distance-based network analysis of the data. 
+
+## Neighbor Net in Phangorn
+
+```{r nn, warning=FALSE, message=FALSE}
+library(phangorn)
+data(yeast)
+dm <- dist.ml(yeast)
+nnet <- neighborNet(dm)
+plot(nnet, "2D")
+```
+
+Let's try that for our data
+```{r nn2, warning=FALSE, message=FALSE}
+phylip<-read.phyDat(file="outputs/100/test.asc.phy")
+dm <- dist.ml(phylip)
+nnet <- neighborNet(dm)
+plot(nnet, "2D")
+
+nj <- NJ(dm)
+plot(nj)
+```
+
+Ok, I don't know how to interpret that.
+
+### Test3
+
+```{r test3, warning=FALSE, message=FALSE}
+phylip<-read.phyDat(file="outputs/100/test3.asc.phy")
+dm <- dist.ml(phylip)
+nnet <- neighborNet(dm)
+plot(nnet, "2D")
+
+nj<-NJ(dm)
+plot(nj)
+```
+
+Just the omy05 bit.   
+```{r omy05, warning=FALSE, message=FALSE}
+omy05<-read.phyDat(file="outputs/100/test3-omy05.asc.phy")
+dm <- dist.ml(omy05)
+nnet <- neighborNet(dm)
+plot(nnet, "2D")
+```
