@@ -52,3 +52,48 @@ dm <- dist.ml(omy05)
 nnet <- neighborNet(dm)
 plot(nnet, "2D")
 ```
+
+### Test4
+Compute nnet & NJ.  
+```{r test4, warning=FALSE, message=FALSE}
+phylip<-read.phyDat(file="outputs/100/test4-maf05.asc.phy")
+dm <- dist.ml(phylip)
+nj<-NJ(dm)
+nnet <- neighborNet(dm)
+plot(nnet, "2D")
+#write.nexus(nnet, file="outputs/100/test4-maf05.asc.nnet.tre")
+```
+
+Plot NJ more nicely   
+```{r ggtree, warning=FALSE, message=FALSE}
+library(ggtree)
+
+tree <- ape::root(nj, c("PCT_PPP1_01\t","LCT_GACR_10\t"))
+ggtree(tree)+geom_tiplab(size=2)
+```
+
+### Test5
+Compute NJ.  
+```{r test5, warning=FALSE, message=FALSE}
+phylip<-read.phyDat(file="outputs/100/test5-maf05.asc.phy")
+subset<-subset(phylip, 1:18)
+
+dm <- dist.ml(subset)
+nj<-NJ(dm)
+```
+
+Plot NJ more nicely   
+```{r ggtree05, warning=FALSE, message=FALSE}
+library(ggtree)
+
+#tree <- ape::root(nj, c("PCT_PPP1_01\t","LCT_GACR_10\t"))
+ggtree(nj)+geom_tiplab(size=2)
+```
+
+Don't forget about the network....
+```{r network5, warning=FALSE, message=FALSE}
+subset<-subset(phylip, 1:18)
+nnet <- neighborNet(dist.ml(subset))
+plot(nnet, "2D")
+
+```
