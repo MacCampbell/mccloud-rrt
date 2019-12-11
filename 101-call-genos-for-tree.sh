@@ -48,3 +48,10 @@ srun angsd -P 24 -b bamlists/test4.bamlist -minInd 43 -ref genome/omyV6Chr.fasta
 srun angsd -P 24 -b bamlists/test4.bamlist -minInd 43 -ref genome/omyV6Chr.fasta -out outputs/100/test4-maf05 -minMaf 0.05 -minMapQ 30 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 0 -SNP_pval 1e-6 -doGeno 4 -doPost 1 > outputs/100/101.05.out 2> outputs/100/101.05.err
 
 srun angsd -P 24 -b bamlists/test4.bamlist -minInd 43 -ref genome/omyV6Chr.fasta -out outputs/100/test4-maf10 -minMaf 0.10 -minMapQ 30 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 0 -SNP_pval 1e-6 -doGeno 4 -doPost 1 > outputs/100/101.10.out 2> outputs/100/101.10.err
+
+#for fifth test data set, with and without minMaf
+srun angsd -P 24 -b bamlists/test5.bamlist -minInd 18 -ref genome/omyV6Chr.fasta -out outputs/100/test5 -minMapQ 30 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 0 -SNP_pval 1e-6 -doGeno 4 -doPost 1 > outputs/100/101.out 2> outputs/100/101.err
+
+srun angsd -P 24 -b bamlists/test5.bamlist -minInd 18 -ref genome/omyV6Chr.fasta -out outputs/100/test5-maf05 -minMaf 0.05 -minMapQ 30 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 0 -SNP_pval 1e-6 -doGeno 4 -doPost 1 > outputs/100/101.05.out 2> outputs/100/101.05.err
+
+srun angsd -P 24 -b bamlists/test5.bamlist -minInd 18 -ref genome/omyV6Chr.fasta -out outputs/100/test5-maf10 -minMaf 0.10 -minMapQ 30 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 0 -SNP_pval 1e-6 -doGeno 4 -doPost 1 > outputs/100/101.10.out 2> outputs/100/101.10.err
