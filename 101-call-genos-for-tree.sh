@@ -23,8 +23,6 @@
 #SBATCH -o bench-%j.output
 #SBATCH -e bench-%j.output
 
-#SBATCH --mem=32G
-
 # hostname is just for debugging
 hostname
 export OMP_NUM_THREADS=$SLURM_NTASKS
