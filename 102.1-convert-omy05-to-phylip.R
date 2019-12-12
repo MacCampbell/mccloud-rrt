@@ -21,6 +21,7 @@ genos<-read_tsv(file=paste(dir,file, sep=""), col_names = FALSE)
 labels<-read_tsv(file=bamlist, col_names = FALSE) %>% 
   mutate(Sample=gsub("bams/","",X1)) %>% select(Sample)
 labels$Sample<-gsub("_RA.sort.flt.bam","",labels$Sample)
+labels$Sample<-gsub("_R1.sort.flt.bam","",labels$Sample)
 
 #Now, we know about two inversion regions omy05 and omy20. Omy05 runs from 27001895-81791946,
 #Omy20 runs from 5446054-18985808 Pearse et al. (2019). So, let's filter those out

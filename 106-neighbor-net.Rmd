@@ -78,8 +78,15 @@ Compute NJ.
 phylip<-read.phyDat(file="outputs/100/test5-maf05.asc.phy")
 subset<-subset(phylip, 1:18)
 
+phylip10<-read.phyDat(file="outputs/100/test5-maf10.asc.phy")
+subset10<-subset(phylip10, 1:18)
+
+
 dm <- dist.ml(subset)
 nj<-NJ(dm)
+
+dm10<-dist.ml(subset10)
+nj10<-NJ(dm10)
 ```
 
 Plot NJ more nicely   
@@ -88,6 +95,8 @@ library(ggtree)
 
 #tree <- ape::root(nj, c("PCT_PPP1_01\t","LCT_GACR_10\t"))
 ggtree(nj)+geom_tiplab(size=2)
+
+ggtree(nj10)+geom_tiplab(size=2)
 ```
 
 Don't forget about the network....
@@ -96,4 +105,6 @@ subset<-subset(phylip, 1:18)
 nnet <- neighborNet(dist.ml(subset))
 plot(nnet, "2D")
 
+nnet10<-neighborNet(dist.ml(subset10))
+plot(nnet10, "2D")
 ```
