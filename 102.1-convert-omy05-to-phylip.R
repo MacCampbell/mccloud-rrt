@@ -43,6 +43,9 @@ seq<-lapply(seq, function(x) { gsub("GG", "G", x) } )
 seq<-lapply(seq, function(x) { gsub("CC", "C", x) } )
 seq<-lapply(seq, function(x) { gsub("TT", "T", x) } )
 
+#Missing data
+seq<-lapply(seq, function(x) { gsub("NN", "N", x) } )
+
 #IUPAC Ambigs 
 #M	A or C
 seq<-lapply(seq, function(x) { gsub("AC", "M", x) } )

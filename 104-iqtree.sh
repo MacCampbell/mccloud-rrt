@@ -36,4 +36,15 @@ module load benchmarks
 # IQ-Tree output   --prefix STRING      Prefix for all output files (default: aln/partition)
 # Using this base path_to_iqtree -s test.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
 # Can automatically select the number of cores with -nt
-srun /home/maccamp/bin/iqtree -nt -s outputs/100/test3.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
+#srun /home/maccamp/bin/iqtree -nt -s outputs/100/test3.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
+
+
+srun /home/maccamp/bin/iqtree -nt -s outputs/100/test4p.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
+srun /home/maccamp/bin/iqtree -nt -s outputs/100/test4-maf05p.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
+srun /home/maccamp/bin/iqtree -nt -s outputs/100/test4-maf10p.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
+
+
+srun /home/maccamp/bin/iqtree -nt -s outputs/100/test5p.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
+srun /home/maccamp/bin/iqtree -nt -s outputs/100/test5-maf05p.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
+srun /home/maccamp/bin/iqtree -nt -s outputs/100/test5-maf10p.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
+

@@ -56,7 +56,7 @@ plot(nnet, "2D")
 ### Test4
 Compute nnet & NJ.  
 ```{r test4, warning=FALSE, message=FALSE}
-phylip<-read.phyDat(file="outputs/100/test4-maf05.asc.phy")
+phylip<-read.phyDat(file="outputs/100/test4-maf05p.asc.phy")
 dm <- dist.ml(phylip)
 nj<-NJ(dm)
 nnet <- neighborNet(dm)
@@ -75,15 +75,22 @@ ggtree(tree)+geom_tiplab(size=2)
 ### Test5
 Compute NJ.  
 ```{r test5, warning=FALSE, message=FALSE}
-phylip<-read.phyDat(file="outputs/100/test5-maf05.asc.phy")
+phylip<-read.phyDat(file="outputs/100/test5p.asc.phy")
 subset<-subset(phylip, 1:18)
 
-phylip10<-read.phyDat(file="outputs/100/test5-maf10.asc.phy")
+phylip05<-read.phyDat(file="outputs/100/test5-maf05p.asc.phy")
+subset05<-subset(phylip05, 1:18)
+
+
+phylip10<-read.phyDat(file="outputs/100/test5-maf10p.asc.phy")
 subset10<-subset(phylip10, 1:18)
 
 
 dm <- dist.ml(subset)
 nj<-NJ(dm)
+
+dm05 <- dist.ml(subset05)
+nj05<-NJ(dm05)
 
 dm10<-dist.ml(subset10)
 nj10<-NJ(dm10)
@@ -95,15 +102,17 @@ library(ggtree)
 
 #tree <- ape::root(nj, c("PCT_PPP1_01\t","LCT_GACR_10\t"))
 ggtree(nj)+geom_tiplab(size=2)
-
+ggtree(nj05)+geom_tiplab(size=2)
 ggtree(nj10)+geom_tiplab(size=2)
 ```
 
 Don't forget about the network....
 ```{r network5, warning=FALSE, message=FALSE}
-subset<-subset(phylip, 1:18)
 nnet <- neighborNet(dist.ml(subset))
 plot(nnet, "2D")
+
+nnet05 <- neighborNet(dist.ml(subset05))
+plot(nnet05, "2D")
 
 nnet10<-neighborNet(dist.ml(subset10))
 plot(nnet10, "2D")
