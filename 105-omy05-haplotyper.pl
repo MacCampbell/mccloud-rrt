@@ -16,6 +16,7 @@
 
 #Need to remove the omy05 from genotype file
 #gunzip -c outputs/100/test3.geno.gz | grep omy05 | cut -f 2-48 > outputs/100/test3.omy05.geno
+#gunzip -c outputs/100/test4-maf05p.geno.gz | grep omy05 | cut -f 2-50 > outputs/100/test4-maf05p.omy05.geno
 #usage
 
 #./105-omy05-haplotyper.pl genotypes.txt  genosToTest.txt bamlist
@@ -36,7 +37,7 @@ my $testFile=shift;
 my $bamlist=shift;
 my @samples;
 # I should probably program a way to generalize this length of the bamlist.
-my $testSize=46;
+my $testSize=48;
 my %sites;
 
 open (INFILE, "<$genoFile") || die "Can't open $genoFile\n";

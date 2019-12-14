@@ -72,6 +72,14 @@ tree <- ape::root(nj, c("PCT_PPP1_01\t","LCT_GACR_10\t"))
 ggtree(tree)+geom_tiplab(size=2)
 ```
 
+### Test4 omy05
+```{r omy05-4, warning=FALSE, message=FALSE}
+omy05<-read.phyDat(file="outputs/100/test4-maf05p-omy05.asc.phy")
+dm <- dist.ml(omy05)
+nnet <- neighborNet(dm)
+plot(nnet, "2D")
+```
+
 ### Test5
 Compute NJ.  
 ```{r test5, warning=FALSE, message=FALSE}
