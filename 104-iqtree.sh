@@ -24,7 +24,7 @@
 #SBATCH -e bench-%j.output
 
 #Memory allocation
-#SBATCH --mem=12G
+#SBATCH --mem=4G
 
 
 # hostname is just for debugging
@@ -39,12 +39,12 @@ module load benchmarks
 #srun /home/maccamp/bin/iqtree -nt -s outputs/100/test3.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
 
 
-srun /home/maccamp/bin/iqtree -nt -s outputs/100/test4p.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
-srun /home/maccamp/bin/iqtree -nt -s outputs/100/test4-maf05p.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
-srun /home/maccamp/bin/iqtree -nt -s outputs/100/test4-maf10p.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
+srun /home/maccamp/bin/iqtree -nt AUTO -s outputs/100/test4p.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
+srun /home/maccamp/bin/iqtree -nt AUTO -s outputs/100/test4-maf05p.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
+srun /home/maccamp/bin/iqtree -nt AUTO -s outputs/100/test4-maf10p.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
 
 
-srun /home/maccamp/bin/iqtree -nt -s outputs/100/test5p.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
-srun /home/maccamp/bin/iqtree -nt -s outputs/100/test5-maf05p.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
-srun /home/maccamp/bin/iqtree -nt -s outputs/100/test5-maf10p.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
+srun /home/maccamp/bin/iqtree -nt AUTO -s outputs/100/test5p.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
+srun /home/maccamp/bin/iqtree -nt AUTO -s outputs/100/test5-maf05p.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
+srun /home/maccamp/bin/iqtree -nt AUTO -s outputs/100/test5-maf10p.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
 
