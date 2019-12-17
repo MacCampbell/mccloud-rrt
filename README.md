@@ -44,3 +44,7 @@ At this point, converting heterozygous sites to ambiguities leads to sites consi
 4. 104-iq-tree.sh - basic script to run concatenated analysis with IQ-TREE including ascertainment bias correction and 1000 rapid bootstraps with GTR+G(4).  
 
 TBD.  To run SVDQuartets, we need a nexus block and PAUP*. Doing this by hand at this time, see test.nex. Also, IQ-TREE webserver has a RAM limit I hit with test2 (51 inds)
+
+## 200 Series
+Here I have identified several loci to try for species tree anlysis. I have then written up angsd to make a vcf restricted to those basic site ranges. Then the FastaAlternateReferenceMaker may work.   
+
