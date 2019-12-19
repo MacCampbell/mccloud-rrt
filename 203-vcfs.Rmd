@@ -1,0 +1,64 @@
+---
+title: "203-vcfs"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Making vcfs
+
+Wow. The clusters are killing me lately. Let's try to work through a small example locally.      
+
+```{sh, eval=FALSE}
+angsd sites index outputs/200/200-ranges.tsv
+
+angsd -P 4 -b bamlists/test5.bamlist -minInd 18  -out outputs/200/test5-maf05p-sites -minMaf 0.05 -minMapQ 30 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 -doGeno 4 -doPost 1 -postCutoff 0.95 -sites outputs/200/200-ranges.tsv -doVcf 1 > outputs/200/202.05.out 2> outputs/200/202.05.err
+
+```
+
+## Alternate reference maker
+With GATK.    
+
+```{sh, eval=FALSE}
+gatk CreateSequenceDictionary -R genome/omyV6Chr.fasta
+
+gatk FastaAlternateReferenceMaker -R genome/omyV6Chr.fasta -O outputs/200/test5-alt.fasta -V outputs/200/test5-maf05p-sites.vcf.gz
+
+```
+
+VCFv4.2(angsd version) is not supported!
+
+--use-iupac-sample:String     If specified, heterozygous SNP sites will be output using IUPAC ambiguity codes.    
+
+Had to unzip, edit header, and then:
+`bgzip test5-maf05p-sites.vcf`   
+`gatk IndexFeatureFile -F test5-maf05p-sites.vcf.gz`   
+`gatk IndexFeatureFile -F test5-maf05p-sites.vcf.gz`
+`mkdir splits`
+`cd splits`   
+`ln -s ../test5-maf05p-sites.vcf* ./`   
+
+bcftools query -l test5-maf05p-sites.vcf.gz | while read line; do vcf-subset test5-maf05p-sites.vcf.gz --exclude-ref -c $line > $line.vcf; done;
+
+Argh... Now we need to bgzip and index
+`$ for f in *.vcf; do bgzip $f; done;`
+`$ for f in *.vcf.gz; do gatk IndexFeatureFile -F $f; done;`
+
+IUPAC option works like so:   
+gatk FastaAlternateReferenceMaker -R ../../../genome/omyV6Chr.fasta -O ind0.fasta  -V ind0.vcf.gz --use-iupac-sample ind0 -L ../200-ranges.bed
+
+```{sh, eval=FALSE}
+
+for f in ind*.vcf.gz; do gatk FastaAlternateReferenceMaker -R ../../../genome/omyV6Chr.fasta -O `basename $f .vcf.gz`.fasta -V $f --use-iupac-sample `basename $f .vcf.gz` -L ../200-ranges.bed; done; 
+
+```
+
+
+Now we have a bunch of fastas for each ind, labeled based on bamlist ind0,ind1,etc. Each file is separate for each individual, so that ind0.fasta has 100 loci. Hmmm... How to combine?
+
+```{sh, eval=FALSE}
+for f in ../*.fasta; do ../../../../204-concat-fastas.pl $f; done;
+```
+ 
