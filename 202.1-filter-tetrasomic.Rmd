@@ -1,0 +1,63 @@
+---
+title: "202.1-filter-tetrasomic"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Filter results to a range of sites
+angsd -sites doesn't work as well as I'd hope.  Tyring to do it locally then I can perhaps filter withthe *.tsv of the ranges of sites I want if needed.
+
+```{sh, eval=FALSE}
+angsd -P 4 -b bamlists/test5.bamlist -minInd 18  -out outputs/200/test5-maf05p-sites -minMaf 0.05 -minMapQ 30 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 -doGeno 4 -doPost 1 -postCutoff 0.95 -sites homoblocks/non-tetrasomic-non-inversion.tsv 
+
+```
+
+Still making an empty file. Sigh. I can try a region file though.   
+```{sh, eval=FALSE}
+angsd -P 4 -b bamlists/test5.bamlist -minInd 18  -out outputs/200/test5-maf05p-sites -minMaf 0.05 -minMapQ 30 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 -doGeno 4 -doPost 1 -postCutoff 0.95 -rf homoblocks/non-tetrasomic-non-inversion.txt 
+
+angsd -P 4 -b bamlists/test5.bamlist -minInd 18  -out outputs/200/test5-maf05p-sites-vcf -minMaf 0.05 -minMapQ 30 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 -doGeno 4 -doPost 1 -postCutoff 0.95 -rf homoblocks/non-tetrasomic-non-inversion.txt -doVcf 1
+
+```
+
+It works!!!   
+# Do some LD filtering on .vcf to remove LD snps.
+
+```{sh, eval=FALSE}
+#Sort vcf
+gunzip -c outputs/200/test5-maf05p-sites-vcf.vcf.gz | awk '$1 ~ /^#/ {print $0;next} {print $0 | "sort -k1,1 -k2,2n"}' > outputs/200/test5-maf05p-sites-vcf.sort.vcf
+#Compress
+bgzip outputs/200/test5-maf05p-sites-vcf.sort.vcf 
+#Index
+tabix outputs/200/test5-maf05p-sites-vcf.sort.vcf.gz
+#Prune
+bcftools +prune -l 0.9 -w 30000 outputs/200/test5-maf05p-sites-vcf.sort.vcf.gz -Ov -o outputs/200/test5-maf05p-sites-vcf.prune.vcf
+
+```
+Pruning gives us 10879 SNPS.
+
+# Change in concatenated results?
+
+```{r, warning=FALSE, message=FALSE}
+library(ggtree)
+library(ape)
+test5<-read.tree(file="outputs/200/test5-maf05p-sites.asc.phy.contree")
+test5<-root(test5, c("LCT_GACR_10","PCT_PPP1_01"))
+ggtree(test5)+geom_tiplab(size=2)+geom_nodelab()
+```
+
+```{r, warning=FALSE, message=FALSE}
+
+test5p<-read.tree(file="outputs/200/test5-maf05p-sites-vcf.prune.min4.asc.phy.contree")
+test5p<-root(test5p, c("LCT_GACR_10","PCT_PPP1_01"))
+ggtree(test5p)+geom_tiplab(size=2)+geom_nodelab()
+```
+```{r, warning=FALSE, message=FALSE}
+
+test5psvd<-read.nexus(file="outputs/200/svdquartets-maf05-p5-prune-asc/svdq-test.tre")
+test5psvd<-root(test5psvd, c("LCT"))
+ggtree(test5psvd, brlens=FALSE)+geom_tiplab(size=4)+geom_nodelab()
+```
