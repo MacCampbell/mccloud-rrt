@@ -1,0 +1,78 @@
+---
+title: "400-private-alleles"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## A Burning Question
+Are MRRT different in terms of allele frequencies or private alleles?   
+
+Let's import our genotype calls and do some basic investigations.
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(pegas)
+library(poppr)
+
+#Some thought about which genotype calls to use should be in here....
+genos<-read_tsv(file="outputs/100/test4-maf05p.geno.gz", col_names=FALSE)
+data <-as_tibble(t(genos[3:50]))
+loci <- genos %>% dplyr::select(X1, X2) 
+loci$X1<-gsub("\\.","_", loci$X1)
+loci$X1<-gsub("_","", loci$X1)
+loci<- loci %>% dplyr::mutate(Locus=paste(X1, X2, sep="-"))
+
+colnames(data)<-loci$Locus
+```
+
+Get some population names together....
+```{r, warning=FALSE, message=FALSE, eval=FALSE}
+pca_meta <- read_tsv("bamlists/test4.bamlist", col_names = FALSE) %>% mutate(Bam=gsub("bams/","",X1)) %>% 
+  mutate(Sample=gsub("bams/","",Bam))
+pca_meta$Sample=gsub("_0\\d_RA.sort.flt.bam","",pca_meta$Sample)
+pca_meta<-pca_meta %>% mutate(Taxon=gsub("_\\w\\w\\w\\w", "", Sample)) %>% select(-X1)
+
+# Now to get things with taxon more reasonable, including splitting of WLRT from REDB
+pca_meta$Taxon<-ifelse(pca_meta$Sample=="RAIN_EGLK","EGLK", pca_meta$Taxon)
+pca_meta$Taxon<-ifelse(pca_meta$Sample %in% c("REDB_SHPN","REDB_EDSN","REDB_MOHD"),"MRRT", pca_meta$Taxon)
+pca_meta$Taxon<-ifelse(pca_meta$Sample %in% c("REDB_DISM"), "WLRT", pca_meta$Taxon)
+pca_meta$Taxon<-ifelse(pca_meta$Sample %in% c("RAIN_NFAR"), "NFAR", pca_meta$Taxon)
+
+#Make a genind
+gdf<-as.loci(data[1:1000], sep="/", ploidy=2)
+genind<-df2genind(gdf, sep="/")
+genind@pop<-as.factor(pca_meta$Taxon)
+#Drop LCT PCT1.sort.flt.bam LCT1.sort.flt.bam
+genind<-genind[genind@pop != "PCT1.sort.flt.bam"]
+genind<-genind[genind@pop != "LCT1.sort.flt.bam"]
+save(genind, file="outputs/400/genind.rda")
+```
+
+
+## Now, let's see if it is sensible
+
+```{r, warning=FALSE, message=FALSE}
+load("outputs/400/genind.rda")
+popdata<-poppr(genind)
+
+popdata
+```
+
+Yeah, that looks ok. 
+
+```{r, warning=FALSE, message=FALSE}
+df<-private_alleles(genind, form = alleles ~  ., report="data.frame")
+
+df2<-as_tibble(df) %>% group_by(population) %>% mutate(Sum=sum(count)) %>% select(population, Sum) %>% unique() %>% ungroup() %>% mutate(Total=sum(Sum))
+
+df2
+```
+
+```{r, warning=FALSE, message=FALSE}
+df2$population<-factor(df2$population, levels=c("MRRT","CAGT","LKGT","KRNB","WLRT","REDB","EGLK","NFAR","HRNB","STLH"))
+ggplot(df2)+geom_bar(aes(x=population,y=Sum), stat="identity")+
+  theme_bw()+
+  theme(panel.grid = element_blank())
+```
