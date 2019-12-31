@@ -148,3 +148,29 @@ How much variance is in our PCs? That is, why did I display the first 3?
 ```{r, warning=FALSE, message=FALSE}
 round(var[1:5]*100,2)
 ```
+
+#This all looks great. But, what about a tree?
+
+```{sh, eval=FALSE}
+
+angsd -P 4 -b bamlists/test4-omy05RR.bamlist -minInd 35 -ref genome/omyV6Chr.fasta -out outputs/300/test4-omy05-genotypes -doGeno 4 -postCutoff 0.95 -doPost 1 -GL 1 -doGlf 2 -doMajorMinor 1 -doMaf 1 -minMaf 0.05 -SNP_pval 1e-6 -minMapQ 30 -minQ 20 -r omy05:27001895-81791946
+
+./102.1-convert-omy05-to-phylip.R outputs/300/ test4-omy05-genotypes.geno.gz ./bamlists/test4-omy05RR.bamlist
+
+source activate py3; ./103-remove-invariant.py -p outputs/300/test4-omy05-genotypes-omy05.phy -o outputs/300/test4-omy05-genotypes-omy05.asc.phy; source deactivate
+
+#203 sites~
+
+iqtree -s outputs/300/test4-omy05-genotypes-omy05.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
+```
+
+Drum roll .....   
+
+
+```{r, warning=FALSE, message=FALSE}
+library(ggtree)
+library(ape)
+tree<-read.tree(file="outputs/300/test4-omy05-genotypes-omy05.asc.phy.contree")
+ggtree(tree, layout="equal_angle")+geom_tiplab(size=2)+geom_nodelab()
+
+```
