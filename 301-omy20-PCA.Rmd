@@ -1,0 +1,161 @@
+---
+title: "301-omy20-PCA"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Omy20 PCA
+I want to know what the omy05 region looks like in a PCA for our data sets. Starting with test data set 04.    
+
+What are our genotypes?
+
+```{sh, eval=FALSE}
+./105-omy05-haplotyper.pl omy20/omy20-diagnostic.txt omy20/test4-maf05p-omy20.geno bamlists/test4.bamlist > omy20/test4-omy20-genotypes.txt
+```
+
+EGLK_01, EGLK_02, LSTN_01, HTCS_03 are heterozygotes. LCT/PCT are Type 1-like.
+All other samples appear to be type 2.
+
+Reduced to homyzygous type II's and omitting LCT. 
+
+```{sh, eval=FALSE}
+angsd -P 4 -b bamlists/test4-omy20II.bamlist -minInd 38 -ref genome/omyV6Chr.fasta -out outputs/300/test4-omy20 -GL 1 -doGlf 2 -doMajorMinor 1 -doMaf 2 -SNP_pval 1e-6 -minMapQ 30 -minQ 20 -r  omy20:5446054-18985808
+
+#****ing Zcat issue
+#300 mac$ ln -s test4-omy20.beagle.gz test4-omy20.beagle.Z
+python /Users/mac/pcangsd/pcangsd.py  -beagle outputs/300/test4-omy20.beagle.Z -admix -o outputs/300/test4-omy20
+
+```
+
+## Some work to actually plot the PCA
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# Some shameless copying from Eric A.
+#' @param samples character vector with the individuals IDs in the order in which
+#' they were passed in the bamlist to angsd.
+#' @param cov covariance matrix
+covar2pcs <- function(samples, cov) {
+  
+  
+  eig <- eigen(cov, symm = TRUE)
+  PC <- as.data.frame(eig$vectors) %>%
+    as_tibble() %>%
+    setNames(sprintf("PC-%02d", 1:ncol(.)))
+  
+  samtib <- tibble(sample = samples)
+  
+  list(
+    PCs = bind_cols(samtib, PC),
+    eigevalues = eig$values
+  )
+}
+```
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+pca_meta <- read_tsv("bamlists/test4-omy20II.bamlist", col_names = FALSE) %>% mutate(Bam=gsub("bams/","",X1)) %>% 
+  mutate(Sample=gsub("bams/","",Bam))
+pca_meta$Sample=gsub("_0\\d_RA.sort.flt.bam","",pca_meta$Sample)
+pca_meta<-pca_meta %>% mutate(Taxon=gsub("_\\w\\w\\w\\w", "", Sample)) %>% select(-X1)
+
+# Now to get things with taxon more reasonable
+pca_meta$Taxon<-ifelse(pca_meta$Sample=="RAIN_EGLK","EGLK", pca_meta$Taxon)
+pca_meta$Taxon<-ifelse(pca_meta$Sample %in% c("REDB_SHPN","REDB_EDSN","REDB_MOHD"),"MRRT", pca_meta$Taxon)
+
+cov<-read_tsv("outputs/300/test4-omy20.cov", col_names=FALSE) %>% as.matrix()
+pca <- covar2pcs(pca_meta$Bam, cov)
+
+pca_long <- pca$PCs %>%
+  tidyr::gather(., key = "PC", "val", -sample)
+
+# then expand a grid of the possible comparisons (ordered)
+expg <- expand.grid(sample = pca$PCs$sample,
+                    PCx = sprintf("PC-%02d", 1:6),
+                    PCy = sprintf("PC-%02d", 1:6),
+                    stringsAsFactors = FALSE) %>%
+  tibble::as_tibble()
+
+# then left join the pca results onto that
+pca_pairs <- dplyr::left_join(expg, pca_long, by = c("sample", "PCx" = "PC")) %>%
+  dplyr::rename(val_x = val) %>%
+  dplyr::left_join(pca_long, by = c("sample", "PCy" = "PC")) %>%
+  dplyr::rename(val_y = val)
+
+pp_meta <- pca_pairs %>%   # just keep the first 6 PCs around
+  left_join(., pca_meta, by = c("sample" = "Bam"))
+
+# now, that has the first 6 PCs in it.  If we want to focus on the just the
+# first 3, we could do 
+npc <- 3
+pp_meta2 <- pp_meta %>%
+  filter( (PCx %in% sprintf("PC-%02d", 1:npc)) & 
+            (PCy %in% sprintf("PC-%02d", 1:npc)) )
+
+ggplot(pp_meta2, aes(x = val_x, y = val_y, fill = Taxon)) +
+  geom_point(pch = 21, size = 2) +
+  scale_fill_discrete(na.value = "white") + 
+  facet_grid(PCy ~ PCx, scales = "free")
+
+
+```
+  
+
+```{r, warning=FALSE, message=FALSE}
+library(ggrepel)
+pp_meta12 <- pp_meta %>%
+  filter(PCx==("PC-01")) %>%
+  filter(PCy==("PC-02"))
+
+centers12<-pp_meta12 %>% group_by(Taxon) %>% mutate(MeanX=mean(val_x), MeanY=mean(val_y)) %>% select(Taxon, MeanX, MeanY) %>% unique()
+
+#Get proportion of variance
+eig <- eigen(cov, symm = TRUE)
+var<-eig$values/sum(eig$values)
+
+pc12<-ggplot()+
+  geom_point(data=pp_meta12, aes(x = val_x, y = val_y, color=Taxon), size=2, alpha=0.75)+
+  geom_text_repel(data=centers12, aes(x=MeanX, y=MeanY, label=Taxon), fontface='bold', size=3)+
+  scale_fill_brewer(palette="Set1")+
+  theme_bw()+
+  theme(panel.grid=element_blank())+
+  xlab(paste("PC1", " ", round((100*var[1]),2), "%", sep = ""))+
+  ylab(paste("PC2", " ", round((100*var[2]),2), "%", sep = ""))+
+  theme(legend.position = "")
+
+pc12
+```
+
+```{r, warning=FALSE, message=FALSE}
+library(ggrepel)
+pp_meta13 <- pp_meta %>%
+  filter(PCx==("PC-01")) %>%
+  filter(PCy==("PC-03"))
+
+centers13<-pp_meta13 %>% group_by(Taxon) %>% mutate(MeanX=mean(val_x), MeanY=mean(val_y)) %>% select(Taxon, MeanX, MeanY) %>% unique()
+
+#Get proportion of variance
+eig <- eigen(cov, symm = TRUE)
+var<-eig$values/sum(eig$values)
+
+pc13<-ggplot()+
+  geom_point(data=pp_meta13, aes(x = val_x, y = val_y, color=Taxon), size=2, alpha=0.75)+
+  geom_text_repel(data=centers13, aes(x=MeanX, y=MeanY, label=Taxon), fontface='bold', size=3)+
+  scale_fill_brewer(palette="Set1")+
+  theme_bw()+
+  theme(panel.grid=element_blank())+
+  xlab(paste("PC1", " ", round((100*var[1]),2), "%", sep = ""))+
+  ylab(paste("PC3", " ", round((100*var[3]),2), "%", sep = ""))+
+  theme(legend.position = "")
+
+pc13
+```
+
+How much variance is in our PCs? That is, why did I display the first 3?
+
+
+```{r, warning=FALSE, message=FALSE}
+round(var[1:5]*100,2)
+```
