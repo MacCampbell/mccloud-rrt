@@ -41,7 +41,7 @@ pca_meta$Taxon<-ifelse(pca_meta$Sample %in% c("REDB_DISM"), "WLRT", pca_meta$Tax
 pca_meta$Taxon<-ifelse(pca_meta$Sample %in% c("RAIN_NFAR"), "NFAR", pca_meta$Taxon)
 
 #Make a genind
-gdf<-as.loci(data[1:1000], sep="/", ploidy=2)
+gdf<-as.loci(data[1:2000], sep="/", ploidy=2)
 genind<-df2genind(gdf, sep="/")
 genind@pop<-as.factor(pca_meta$Taxon)
 #Drop LCT PCT1.sort.flt.bam LCT1.sort.flt.bam
@@ -57,7 +57,7 @@ save(genind, file="outputs/400/genind.rda")
 load("outputs/400/genind.rda")
 popdata<-poppr(genind)
 
-popdata
+popdata<-popdata %>% rename(Population=Pop)
 ```
 
 Yeah, that looks ok. 
@@ -65,14 +65,20 @@ Yeah, that looks ok.
 ```{r, warning=FALSE, message=FALSE}
 df<-private_alleles(genind, form = alleles ~  ., report="data.frame")
 
-df2<-as_tibble(df) %>% group_by(population) %>% mutate(Sum=sum(count)) %>% select(population, Sum) %>% unique() %>% ungroup() %>% mutate(Total=sum(Sum))
+df2<-as_tibble(df) %>% group_by(population) %>% mutate(Sum=sum(count)) %>% select(population, Sum) %>% unique() %>% ungroup() %>% mutate(Total=sum(Sum)) %>% rename(Population=population)
 
-df2
+df2<-df2 %>% left_join(popdata) %>% mutate(Alleles=Sum/N)
 ```
 
 ```{r, warning=FALSE, message=FALSE}
-df2$population<-factor(df2$population, levels=c("MRRT","CAGT","LKGT","KRNB","WLRT","REDB","EGLK","NFAR","HRNB","STLH"))
-ggplot(df2)+geom_bar(aes(x=population,y=Sum), stat="identity")+
+df2$Population<-factor(df2$Population, levels=c("MRRT","CAGT","LKGT","KRNB","WLRT","REDB","EGLK","NFAR","HRNB","STLH"))
+
+ggplot(df2)+geom_bar(aes(x=Population,y=Sum), stat="identity")+
+  theme_bw()+
+  theme(panel.grid = element_blank())
+
+ggplot(df2)+geom_bar(aes(x=Population, y=Alleles),stat="identity")+
+  ggtitle("Average Number of \nPrivate Alleles per Individual")+
   theme_bw()+
   theme(panel.grid = element_blank())
 ```
