@@ -174,3 +174,21 @@ tree<-read.tree(file="outputs/300/test4-omy05-genotypes-omy05.asc.phy.contree")
 ggtree(tree, layout="equal_angle")+geom_tiplab(size=2)+geom_nodelab()
 
 ```
+
+## What about a network?
+Can try phangorn: https://cran.r-project.org/web/packages/phangorn/vignettes/Networx.html
+
+```{r, warning=FALSE, message=FALSE}
+library(phangorn)
+dat<-read.dna("outputs/300/test4-omy05-genotypes-omy05.asc.phy", format="sequential")
+dat<-as.phyDat(dat)
+set.seed(1)
+bs <- bootstrap.phyDat(dat, FUN = function(x)nj(dist.hamming(x)), 
+    bs=100)
+tree <- nj(dist.hamming(dat))
+par("mar" = rep(1, 4))
+tree <- plotBS(tree, bs, "phylogram")
+
+cnet <- consensusNet(bs, .3)
+plot(cnet, "2D", show.edge.label=TRUE)
+```

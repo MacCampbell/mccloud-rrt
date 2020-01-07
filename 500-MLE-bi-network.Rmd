@@ -1,0 +1,111 @@
+---
+title: "500-MLE-bi-network"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Maximum Pseudo-Likelihood Network from SNPs
+
+Phylonet allows us to do this: https://wiki.rice.edu/confluence/display/PHYLONET/MLE_BiMarkers    
+
+We do need to specify the number of reticulation events. So, let's allow 0,1,2,3,4 in the end. At the moment:    
+__1__ EGLK<-> Coastal Trout   
+__2__ KRNB<-> Whatever   
+__3__ MRRT <-> Coastal Trout   
+
+I'm going to set up a nexus file with this basic command:    
+MLE_BiMarkers -taxa (C,F,K,L,O,P,Z) -pseudo -mnr 10 -mr 3 -tm <C:C; F:F; K:K; L:L; O:O; P:P; Z:Z>;   
+    
+Starting with "test5-maf05p-sites-vcf.prune.vcf", converting to a phylipremoving doubled representatives to get 10 individuals. 10838 SNPS with min4, 2147 with min20.... Let's try min20 first, and we have relabel following the test5.bamlist file. groan. running mr 1 and mr 3.
+
+```{sh, eval=FALSE}
+python vcf2phylip.py -i outputs/200/test5-maf05p-sites-vcf.prune.vcf -b -m 20
+
+cp outputs/200/test5-maf05p-sites-vcf.prune.min20.bin.nexus ./outputs/500/test5-maf05p-sites-vcf.prune.min20.bin.nexus
+
+java -jar $PHYLONET ~/phylonet/PhyloNet_3.8.0.jar outputs/500/test5-maf05p-sites-vcf.prune.min20.bin.nexus 
+
+java -jar $PHYLONET ~/phylonet/PhyloNet_3.8.0.jar outputs/500/test5-mr3.nex 
+```
+
+Working Phylonet block:  MLE_BiMarkers -taxa (CAGT,LKGT,KRNB,GLRB,WLRB,EGLK,LYBA,HRNB,MRRT,LahontanCT) -pseudo  -mnr 10 -mr 1 -tm  <CAGT:VCLS01; LKGT:UWLC01; KRNB:CHGC01; GLRB:CTWD02; WLRB:DISM01; EGLK:EGLK01; LYBA:LYBA01; HRNB:COLE01; MRRT:SHPN02; LahontanCT:GACR10> "/Users/mac/github/mccloud-rrt/outputs/500/test5-maf05p-sites-vcf.prune.min20.bin.out";   
+
+Note that the -tm command looks like taxon:sample.
+
+## So that works. I think I'll drop the CT and see what that does.
+```{sh, eval=FALSE}
+java -jar $PHYLONET ~/phylonet/PhyloNet_3.8.0.jar outputs/500/test5-mr2-noLCT.nex
+```
+
+### Plotting
+https://github.com/KlausVigo/ggnetworx   
+
+Note: " The branch lengths of the phylogenetic networks are measured in units of expected
+number of mutations per site (scale is shown). "
+
+Huynh et al. dig this "Branch lengths (τ) and coalescent units (θ/2) were translated from units of number of mutations per site to absolute time (Ma) by post hoc calibrating the Hordeum stem node to 15.3 Ma (Marcussen et al., 2014)."    
+
+```{r, warning=FALSE, message=FALSE}
+library(ggnetworx)
+library(ape)
+
+network<-read.evonet(text="(((((MRRT)I2#H1,(WLRB,GLRB)I10)I0,(HRNB,(LYBA,EGLK)I9)I6)I3,((KRNB,(I2#H1,LKGT)I8)I1,CAGT)I4)I7,LahontanCT)I5; : [0.0444859239335936](LahontanCT:0.4825865898489565,((CAGT:0.21452042234876778,((LKGT:0.17342555183655908,(MRRT:0.1353344576267162)I2#H1:0.038091094209842885::0.19158824334083324)I8:0.005913039439337575,KRNB:0.17933859127589666)I1:0.03518183107287112)I4:0.19499338506708147,(((EGLK:0.2664890604978235,LYBA:0.2664890604978235)I9:0.01641450564631214,HRNB:0.28290356614413564)I6:0.0729836089771676,((GLRB:0.20689491890819373,WLRB:0.20689491890819373)I10:0.07667918495996323,I2#H1:0.14823964624144076::0.8084117566591668)I0:0.07231307125314629)I3:0.053626632294546006)I7:0.07307278243310728)I5")
+
+ggevonet(network,layout = "rectangular") +
+    geom_tiplab(geom='label', offset=.5, hjust=.1)+
+    xlim(NA,20)
+
+```
+
+##Bayesian Version
+
+
+# Consensus network version
+
+Using min4 cause labels.
+```{r, warning=FALSE, message=FALSE}
+library(phangorn)
+dna<-read.dna("outputs/200/test5-maf05p-sites-vcf.prune.min20.phy")
+dat<-as.phyDat(dna)
+set.seed(1)
+bs <- bootstrap.phyDat(dat, FUN = function(x)nj(dist.hamming(x)), 
+    bs=100)
+tree <- nj(dist.hamming(dat))
+par("mar" = rep(1, 4))
+tree <- plotBS(tree, bs, "phylogram")
+
+#By default prob=0.3
+cnet <- consensusNet(bs, .25)
+plot(cnet, "2D", show.edge.label=TRUE)
+
+```
+
+Best score from test5-mr1:
+-394412.9259549894
+```{r, message=FALSE, warning=FALSE}
+network<-read.evonet(text="((LahontanCT)I4#H1,(((KRNB,LKGT)I3,CAGT)I6,(((LYBA,HRNB)I1,EGLK)I10,((MRRT,I4#H1)I9,(GLRB,WLRB)I2)I5)I8)I7)I0; : [0.013040585296760188](((((WLRB:0.22776162309533488,GLRB:0.22776162309533488)I2:0.06463921082812785,((LahontanCT:0.11906090759359308)I4#H1:0.021790460524917593::0.3963349058662462,MRRT:0.14085136811851068)I9:0.15154946580495204)I5:0.08204167869850487,(EGLK:0.2885776271656115,(HRNB:0.2661215156457814,LYBA:0.2661215156457814)I1:0.022456111519830124)I10:0.08586488545635607)I8:0.04163165811938818,(CAGT:0.23651067871894904,(LKGT:0.18520543086586533,KRNB:0.18520543086586533)I3:0.05130524785308371)I6:0.17956349202240673)I7:1.067058624535755,I4#H1:1.3640718876835176::0.6036650941337538)I0")
+
+ggevonet(network,layout = "rectangular") +
+    geom_tiplab(geom='label', offset=.5, hjust=.1)+
+    xlim(NA,20)
+```
+
+
+Best score from test5-noLCT-mr2:   
+-283208.0914962721
+```{r, message=FALSE, warning=FALSE}
+network<-read.evonet(text="(((WLRB,GLRB)I11)I2#H1,(((I2#H1,(MRRT)I8#H2)I10,((LYBA,HRNB)I9,EGLK)I3)I0,((I8#H2,CAGT)I5,(KRNB,LKGT)I7)I6)I1)I4; : [0.036425807167633474]((((LKGT:0.18754812042490712,KRNB:0.18754812042490712)I7:0.04812800237940207,(CAGT:0.1396563622919577,(MRRT:0.09649601981148434)I8#H1:0.043160342480473346::0.23378351916804896)I5:0.0960197605123515)I6:0.19860508428946552,((EGLK:0.3014118070562103,(HRNB:0.27982920692760105,LYBA:0.27982920692760105)I9:0.02158260012860924)I3:0.050538766636953114,(I8#H1:0.14614630621859323::0.766216480831951,((GLRB:0.1989474150659772,WLRB:0.1989474150659772)I11:0.016631329719374227)I2#H2:0.02706358124472613::0.736092042600517)I10:0.10930824766308583)I0:0.08233063340061131)I1:0.8335031564962991,I2#H2:1.0522056188047224::0.26390795739948303)I4")
+
+ggevonet(network,layout = "rectangular") +
+    geom_tiplab(geom='label', offset=.5, hjust=.1)+
+    xlim(NA,20)
+```
+
+Also trying this with more reticulations (4)
+
+```{sh, eval=FALSE}
+java -jar $PHYLONET ~/phylonet/PhyloNet_3.8.0.jar outputs/500/test5-mr4-noLCT.nex 
+```
