@@ -1,0 +1,134 @@
+---
+title: "600-treemix"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Treemix
+
+Giving this a go following a tutorial: https://speciationgenomics.github.io/Treemix/   
+
+Require .clst file:    
+.clst (cluster membership file)   
+
+From plink, produced by --write-cluster. Valid input for --within.   
+
+A text file with no header line, and one line per sample with the following three fields:
+
+__1__    Family ID
+__2__    Within-family ID
+__3__    Cluster name
+
+Made one of these "outputs/600/test5.clst". Some editiong of vcf2treemix.sh done. 10688 SNPs retained.
+
+```{sh, eval=FALSE}
+./600.1-vcf2treemix.sh outputs/600/test5-maf05p-sites-vcf.prune.vcf outputs/600/test5.clst
+```
+
+Now to loop through migration edges 0 to 5. There is a sample size flag "-noss"
+```{sh, eval=FALSE}
+for i in {0..5}
+do
+ treemix -i outputs/600/test5-maf05p-sites-vcf.prune.treemix.frq.gz -m $i -o outputs/600/test5.$i -root LCT -bootstrap -k 500 > outputs/600/test5.treemix_${i}_log &
+done
+```
+
+With "-noss"
+```{sh, eval=FALSE}
+for i in {0..5}
+do
+ treemix -i outputs/600/test5-maf05p-sites-vcf.prune.treemix.frq.gz -m $i -o outputs/600/test5-noss.$i -root LCT -bootstrap -k 500 -noss> outputs/600/test5-noss.treemix_${i}_log &
+done
+```
+
+## Plotting
+```{r, warning=FALSE, message=FALSE}
+library(RColorBrewer)
+library(R.utils)
+source("~/treemix/treemix-1.13/src/plotting_funcs.R")
+prefix="outputs/600/test5"
+
+par(mfrow=c(2,3))
+for(edge in 0:5){
+  plot_tree(cex=0.8,paste0(prefix,".",edge))
+  title(paste(edge,"edges"))
+}
+```
+
+## Plotting
+```{r, warning=FALSE, message=FALSE}
+prefix="outputs/600/test5-noss"
+
+par(mfrow=c(2,3))
+for(edge in 0:5){
+  plot_tree(cex=0.8,paste0(prefix,".",edge))
+  title(paste(edge,"edges"))
+}
+```
+
+
+## More data!!!
+
+Let's bring in more SNPs and individuals. 11,563 SNPs this way...
+
+```{sh, eval=FALSE}
+bcftools +prune -l 0.95 -w 10000 outputs/200/test5-maf05p-sites-vcf.sort.vcf.gz -Ov -o outputs/600/test5w10k.prune.vcf
+./600.1-vcf2treemix.sh outputs/600/test5w10k.prune.vcf outputs/600/test5.clst
+
+for i in {0..5}
+do
+ treemix -i outputs/600/test5w10k.prune.treemix.frq.gz -m $i -o outputs/600/test5w10k.$i -root LCT -bootstrap -k 500 -noss > outputs/600/test5w10k.treemix_${i}_log &
+done
+```
+
+###Plotting More Data!!!!
+Plotting
+```{r, warning=FALSE, message=FALSE}
+prefix="outputs/600/test5w10k"
+
+par(mfrow=c(2,3))
+for(edge in 0:5){
+  plot_tree(cex=0.8,paste0(prefix,".",edge))
+  title(paste(edge,"edges"))
+}
+```
+
+#Test Dataset 4 
+```{sh, eval=FALSE}
+#Have to call the genotypes
+
+angsd -P 3 -b bamlists/test4.bamlist -minInd 43  -out outputs/600/test4-maf05p-sites -minMaf 0.05 -minMapQ 30 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 -doGeno 4 -doPost 1 -postCutoff 0.95 -doVcf 1 -rf homoblocks/non-tetrasomic-non-inversion.txt > temp.out 2> temp.err
+
+#Sort vcf
+gunzip -c outputs/600//test4-maf05p-sites.vcf.gz | awk '$1 ~ /^#/ {print $0;next} {print $0 | "sort -k1,1 -k2,2n"}' > outputs/600/test4-maf05p-sites.sort.vcf
+#Compress
+bgzip outputs/600/test4-maf05p-sites.sort.vcf 
+#Index
+tabix outputs/600/test4-maf05p-sites.sort.vcf.gz
+#Prune
+bcftools +prune -l 0.9 -w 30000 outputs/600/test4-maf05p-sites.sort.vcf.gz -Ov -o outputs/600/test4-maf05p-sites.sort.prune.vcf
+
+#Generate treemix files, first edit header of vcf, 26002 out of 26075 sites kept
+./600.1-vcf2treemix.sh outputs/600/test4-maf05p-sites.sort.prune.vcf  outputs/600/test4.clst
+
+
+for i in {0..5}
+do
+ treemix -i outputs/600/test4-maf05p-sites.sort.prune.treemix.frq.gz -m $i -o outputs/600/test4.$i -root LCT -bootstrap -k 500  > outputs/600/test4.treemix_${i}_log &
+done
+```
+
+Plotting
+```{r, warning=FALSE,message=FALSE}
+prefix="outputs/600/test4"
+
+par(mfrow=c(2,3))
+for(edge in 0:5){
+  plot_tree(cex=0.8,paste0(prefix,".",edge))
+  title(paste(edge,"edges"))
+}
+```
+
