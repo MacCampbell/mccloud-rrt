@@ -65,10 +65,16 @@ ggevonet(network,layout = "rectangular") +
 
 # Consensus network version
 
-Using min4 cause labels.
+```{sh, eval=FALSE}
+bcftools reheader --samples bamlists/test5-sample-names.txt -o outputs/600/test5-maf05p-sites.prune.reheadered.vcf outputs/600/test5-maf05p-sites-vcf.prune.vcf
+vcf2phlip
+
+./vcf2phylip.py -i outputs/600/test5-maf05p-sites.prune.reheadered.vcf
+```
+
 ```{r, warning=FALSE, message=FALSE}
 library(phangorn)
-dna<-read.dna("outputs/200/test5-maf05p-sites-vcf.prune.min20.phy")
+dna<-read.phyDat("outputs/600/test5-maf05p-sites.prune.reheadered.min4.phy")
 dat<-as.phyDat(dna)
 set.seed(1)
 bs <- bootstrap.phyDat(dat, FUN = function(x)nj(dist.hamming(x)), 
@@ -78,7 +84,24 @@ par("mar" = rep(1, 4))
 tree <- plotBS(tree, bs, "phylogram")
 
 #By default prob=0.3
-cnet <- consensusNet(bs, .25)
+cnet <- consensusNet(bs, .2)
+plot(cnet, "2D", show.edge.label=TRUE)
+
+```
+
+```{r, warning=FALSE, message=FALSE}
+library(phangorn)
+dna<-read.phyDat("outputs/test5-maf05p-sites.prune.reheadered.min4.phy")
+dat<-as.phyDat(dna)
+set.seed(1)
+bs <- bootstrap.phyDat(dat, FUN = function(x)nj(dist.hamming(x)), 
+    bs=100)
+tree <- nj(dist.hamming(dat))
+par("mar" = rep(1, 4))
+tree <- plotBS(tree, bs, "phylogram")
+
+#By default prob=0.3
+cnet <- consensusNet(bs, .1)
 plot(cnet, "2D", show.edge.label=TRUE)
 
 ```

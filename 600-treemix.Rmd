@@ -132,3 +132,63 @@ for(edge in 0:5){
 }
 ```
 
+#Concatenated analysis of test4
+
+We need to reheader the file.
+```{sh, eval=FALSE}
+#lets reheader the bam file
+bcftools reheader --samples bamlists/test4-sample-names.txt -o outputs/600/test4-maf05p-sites.sort.prune.reheadered.vcf outputs/600/test4-maf05p-sites.sort.prune.vcf
+
+#Convert to phylip
+./vcf2phylip.py -i outputs/600/test4-maf05p-sites.sort.prune.reheadered.vcf
+
+#Correct for ascertainment bias
+source activate py3; ./103-remove-invariant.py -p outputs/600/test4-maf05p-sites.sort.prune.reheadered.min4.phy -o outputs/600/test4-maf05p-sites.sort.prune.reheadered.min4.asc.phy; source deactivate;
+
+#Infer a proper tree
+iqtree -s outputs/600/test4-maf05p-sites.sort.prune.reheadered.min4.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
+```
+
+Plot this tree
+```{r, warning=FALSE, message=FALSE}
+library(ggtree)
+library(ape)
+tree<-read.tree(file="outputs/600/test4-maf05p-sites.sort.prune.reheadered.min4.asc.phy.contree")
+tree<-root(tree, c("PCT_PPP1_01","LCT_GACR_10"))
+ggtree(tree)+geom_tiplab(size=2)+geom_nodelab()
+```
+
+How about a distance network? 
+
+```{r, warning=FALSE, message=FALSE}
+library(phangorn)
+#dna<-read.phyDat("outputs/600/test4-maf05p-sites.sort.prune.reheadered.min4.asc.phy")
+dna<-read.phyDat("outputs/test4-maf05p-sites.sort.prune.reheadered.min4.asc.phy")
+dat<-as.phyDat(dna)
+set.seed(1)
+bs <- bootstrap.phyDat(dat, FUN = function(x)nj(dist.hamming(x)), 
+    bs=100)
+tree <- nj(dist.hamming(dat))
+par("mar" = rep(1, 4))
+tree <- plotBS(tree, bs, "phylogram")
+
+#By default prob=0.3
+cnet <- consensusNet(bs, .25)
+plot(cnet, "2D", show.edge.label=TRUE)
+
+```
+
+```{r, warning=FALSE, message=FALSE}
+#By default prob=0.3
+cnet <- consensusNet(bs, .15)
+plot(cnet, "2D", show.edge.label=TRUE)
+
+```
+
+
+
+Plot the svdquartets tree when we can.
+
+```{r, eval=FALSE, warning=FALSE, message=FALSE}
+stree<-read.tree(file="outputs/600/test4-svd/")
+```
