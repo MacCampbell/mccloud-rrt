@@ -47,8 +47,8 @@ mv better.map ${file}.map
 #plink --bfile $file --freq --missing --within $2 --out $file --allow-no-sex --allow-extra-chr 0
 
 #Edited by Mac 01/07/2020
-plink --file $file --make-bed --out $file --allow-no-sex --noweb
-plink --bfile $file --freq --missing --within $2 --out $file --allow-no-sex --noweb
+plink --file $file --make-bed --out $file --allow-no-sex --allow-extra-chr --noweb
+plink --bfile $file --freq --missing --within $2 --out $file --allow-no-sex --allow-extra-chr --noweb 
 
 # zip it
 gzip $file".frq.strat"
