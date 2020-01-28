@@ -43,12 +43,13 @@ awk -F"\t" '{
 mv better.map ${file}.map
 
 # convert it to a stratified frq file, also creates .bed, .bim, .fam, .log, .nosex
+plink --file $file --make-bed --out $file --allow-no-sex --allow-extra-chr 0
+plink --bfile $file --freq --missing --within $2 --out $file --allow-no-sex --allow-extra-chr 0
+
+#Edited by Mac 01/07/2020 to accomodate an old version of plink. Now plink has been updated.
+#plink --vcf $file --recode --out $file
 #plink --file $file --make-bed --out $file --allow-no-sex --allow-extra-chr 0
 #plink --bfile $file --freq --missing --within $2 --out $file --allow-no-sex --allow-extra-chr 0
-
-#Edited by Mac 01/07/2020
-plink --file $file --make-bed --out $file --allow-no-sex --allow-extra-chr --noweb
-plink --bfile $file --freq --missing --within $2 --out $file --allow-no-sex --allow-extra-chr --noweb 
 
 # zip it
 gzip $file".frq.strat"

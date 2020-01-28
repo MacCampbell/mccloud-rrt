@@ -14,6 +14,99 @@ __1__ Concatenated Phylogeny with Expanded MRRT Sampling
 __2__ Admixture plot of Eagle Lake omy05 genotypes with MRRT and HRNB
 
 ## 1. Concatenated Phylogeny
+
+Here was one of my first data sets, but, I am now excluding tetrasomically inhertied genomic regions and the inversions on omy05 and omy20.    
+```{sh, eval=FALSE}
+angsd -P 4 -b bamlists/test5.bamlist -minInd 19  -out outputs/700/test5-maf05p-sites -minMaf 0.05 -minMapQ 30 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 -doGeno 4 -doPost 1 -postCutoff 0.95 -doVcf 1 -rf homoblocks/non-tetrasomic-non-inversion.txt > outputs/700/test5-make-vcf.out 2> outputs/700/test5-make-vcf.err
+
+#Sort vcf
+gunzip -c outputs/700/test5-maf05p-sites.vcf.gz | awk '$1 ~ /^#/ {print $0;next} {print $0 | "sort -k1,1 -k2,2n"}' > outputs/700/test5-maf05p-sites.sort.vcf
+#Compress
+bgzip outputs/700/test5-maf05p-sites.sort.vcf 
+#Index
+tabix outputs/700/test5-maf05p-sites.sort.vcf.gz -f
+
+#Pruned - as input for multispecies coalescent type analyses
+bcftools +prune -l 0.9 -w 30000 outputs/700/test5-maf05p-sites.sort.vcf.gz -Ov -o outputs/700/test5-maf05p-sites.sort.prune.vcf
+
+#lets reheader the bam file
+bcftools reheader --samples bamlists/test5-sample-names.txt -o outputs/700/test5-maf05p-sites.sort.prune.reheadered.vcf outputs/700/test5-maf05p-sites.sort.prune.vcf
+
+#Convert to phylip
+./vcf2phylip.py -i outputs/700/test5-maf05p-sites.sort.prune.reheadered.vcf
+
+#Correct for ascertainment bias
+source activate py3; ./103-remove-invariant.py -p outputs/700/test5-maf05p-sites.sort.prune.reheadered.min4.phy -o outputs/700/test5-maf05p-sites.sort.prune.reheadered.min4.asc.phy; source deactivate;
+
+#Infer a proper tree
+iqtree -s outputs/700/test5-maf05p-sites.sort.prune.reheadered.min4.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000 --redo
+
+#Unpruned
+bcftools reheader --samples bamlists/test5-sample-names.txt -o outputs/700/test5-maf05p-sites.sort.reheadered.vcf.gz outputs/700/test5-maf05p-sites.sort.vcf.gz
+
+gunzip outputs/700/test5-maf05p-sites.sort.reheadered.vcf.gz
+
+./vcf2phylip.py -i outputs/700/test5-maf05p-sites.sort.reheadered.vcf
+
+source activate py3; ./103-remove-invariant.py -p outputs/700/test5-maf05p-sites.sort.reheadered.min4.phy -o outputs/700/test5-maf05p-sites.sort.reheadered.min4.asc.phy; source deactivate;
+
+iqtree -s outputs/700/test5-maf05p-sites.sort.reheadered.min4.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000 --redo
+
+```
+
+And to plot (1) the pruned data set of 3,163 SNPs and (2) the unpruned data of 15,769 SNPs
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(ggtree)
+library(ape)
+tree<-read.tree(file="outputs/700/test5-maf05p-sites.sort.prune.reheadered.min4.asc.phy.contree")
+tree<-root(tree, c("PCT_PPP1_01","LCT_GACR_10"))
+
+ggtree(tree)+geom_tiplab(size=2)+geom_nodelab()
+
+tree2<-read.tree(file="outputs/700/test5-maf05p-sites.sort.reheadered.min4.asc.phy.contree")
+tree2<-root(tree, c("PCT_PPP1_01","LCT_GACR_10"))
+
+ggtree(tree2)+geom_tiplab(size=2)+geom_nodelab()
+
+```
+
+Not pruning SNPs leads to much higher back bone support values.
+
+```{r, warning=FALSE, message=FALSE}
+library(phangorn)
+dna<-read.phyDat("outputs/700/test5-maf05p-sites.sort.prune.reheadered.min4.asc.phy")
+dat<-as.phyDat(dna)
+set.seed(1)
+bs <- bootstrap.phyDat(dat, FUN = function(x)nj(dist.hamming(x)), 
+    bs=100)
+tree <- nj(dist.hamming(dat))
+tree<-root(tree, c("PCT_PPP1_01\t","LCT_GACR_10\t"))
+
+par("mar" = rep(1, 4))
+tree <- plotBS(tree, bs, "phylogram")
+
+#By default prob=0.3
+cnet <- consensusNet(bs, .25)
+plot(cnet, "2D", show.edge.label=TRUE)
+
+dna<-read.phyDat("outputs/700/test5-maf05p-sites.sort.reheadered.min4.asc.phy")
+dat<-as.phyDat(dna)
+set.seed(1)
+bs <- bootstrap.phyDat(dat, FUN = function(x)nj(dist.hamming(x)), 
+    bs=100)
+tree <- nj(dist.hamming(dat))
+tree<-root(tree, c("PCT_PPP1_01\t","LCT_GACR_10\t"))
+
+par("mar" = rep(1, 4))
+tree <- plotBS(tree, bs, "phylogram")
+
+#By default prob=0.3
+cnet <- consensusNet(bs, .25)
+plot(cnet, "2D", show.edge.label=TRUE)
+
+```
+
 I have included more MRRT samples here and have chosen the following samples for this test:
 CAGT_VCLS_01    
 CAGT_VCLS_02    
@@ -49,7 +142,7 @@ LCT_GACR_10
 PCT_PPP1_01    
     
 
-Now we have a test6.bamlist and test6-sample-names.txt. We can run this locally, using ~ 95% missing data threshold. I am excluding tetrasomically inhertied genomic regions and the inversions on omy05 and omy20.    
+Now we have a test6.bamlist and test6-sample-names.txt. 
 
 ```{sh, eval=FALSE}
 angsd -P 4 -b bamlists/test6.bamlist -minInd 30  -out outputs/700/test6-maf05p-sites -minMaf 0.05 -minMapQ 30 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 -doGeno 4 -doPost 1 -postCutoff 0.95 -doVcf 1 -rf homoblocks/non-tetrasomic-non-inversion.txt > outputs/700/make-vcf.out 2> outputs/700/make-vcf.err
@@ -75,25 +168,36 @@ source activate py3; ./103-remove-invariant.py -p outputs/700/test6-maf05p-sites
 #Infer a proper tree
 iqtree -s outputs/700/test6-maf05p-sites.sort.prune.reheadered.min4.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000 --redo
 
+#Unpruned
+bcftools reheader --samples bamlists/test6-sample-names.txt -o outputs/700/test6-maf05p-sites.sort.reheadered.vcf.gz outputs/700/test6-maf05p-sites.sort.vcf.gz
+
+gunzip outputs/700/test6-maf05p-sites.sort.reheadered.vcf.gz
+
+./vcf2phylip.py -i outputs/700/test6-maf05p-sites.sort.reheadered.vcf
+
+source activate py3; ./103-remove-invariant.py -p outputs/700/test6-maf05p-sites.sort.reheadered.min4.phy -o outputs/700/test6-maf05p-sites.sort.reheadered.min4.asc.phy; source deactivate;
+
+iqtree -s outputs/700/test6-maf05p-sites.sort.reheadered.min4.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000 --redo
+
 ```
-Note:Alignment has 32 sequences with 5917 columns, 5899 distinct patterns
-3408 parsimony-informative, 2509 singleton sites, 0 constant sites
 
 
-Plot this tree.    
+Plot these two trees.
 ```{r, warning=FALSE, message=FALSE}
-library(tidyverse)
-library(ggtree)
-library(ape)
 tree<-read.tree(file="outputs/700/test6-maf05p-sites.sort.prune.reheadered.min4.asc.phy.contree")
 tree<-root(tree, c("PCT_PPP1_01","LCT_GACR_10"))
 
 ggtree(tree)+geom_tiplab(size=2)+geom_nodelab()
 
+tree2<-read.tree(file="outputs/700/test6-maf05p-sites.sort.reheadered.min4.asc.phy.contree")
+tree2<-root(tree, c("PCT_PPP1_01","LCT_GACR_10"))
+
+ggtree(tree2)+geom_tiplab(size=2)+geom_nodelab()
+
 
 ```
-How about a distance tree? 
 
+Here, we seem to resolve MRRT as a sister lineage of coastal rainbows with low support. The backbone supports are pretty darn low.
 ```{r, warning=FALSE, message=FALSE}
 library(phangorn)
 dna<-read.phyDat("outputs/700/test6-maf05p-sites.sort.prune.reheadered.min4.asc.phy")
@@ -102,6 +206,8 @@ set.seed(1)
 bs <- bootstrap.phyDat(dat, FUN = function(x)nj(dist.hamming(x)), 
     bs=100)
 tree <- nj(dist.hamming(dat))
+tree<-root(tree, c("PCT_PPP1_01\t","LCT_GACR_10\t"))
+
 par("mar" = rep(1, 4))
 tree <- plotBS(tree, bs, "phylogram")
 
@@ -137,18 +243,32 @@ source activate py3; ./103-remove-invariant.py -p outputs/700/test7-maf05p-sites
 #Infer a proper tree
 iqtree -s outputs/700/test7-maf05p-sites.sort.prune.reheadered.min4.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
 
+#Unpruned
+bcftools reheader --samples bamlists/test7-sample-names.txt -o outputs/700/test7-maf05p-sites.sort.reheadered.vcf.gz outputs/700/test7-maf05p-sites.sort.vcf.gz
+
+gunzip outputs/700/test7-maf05p-sites.sort.reheadered.vcf.gz
+
+./vcf2phylip.py -i outputs/700/test7-maf05p-sites.sort.reheadered.vcf
+
+source activate py3; ./103-remove-invariant.py -p outputs/700/test7-maf05p-sites.sort.reheadered.min4.phy -o outputs/700/test7-maf05p-sites.sort.reheadered.min4.asc.phy; source deactivate;
+
+iqtree -s outputs/700/test7-maf05p-sites.sort.reheadered.min4.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000 --redo
+
 ```
 
 #Plot this tree
 ```{r, warning=FALSE, message=FALSE}
-tree2<-read.tree(file="outputs/700/test7-maf05p-sites.sort.prune.reheadered.min4.asc.phy.contree")
+tree<-read.tree(file="outputs/700/test7-maf05p-sites.sort.prune.reheadered.min4.asc.phy.contree")
+ggtree(tree)+geom_tiplab(size=2)+geom_nodelab()
 
+tree2<-read.tree(file="outputs/700/test7-maf05p-sites.sort.reheadered.min4.asc.phy.contree")
 ggtree(tree2)+geom_tiplab(size=2)+geom_nodelab()
+
 ```
 
+We don't have to use ascertainment corrected alignments in a distance tree/network.
 ```{r, warning=FALSE, message=FALSE}
-library(phangorn)
-dna<-read.phyDat("outputs/700/test7-maf05p-sites.sort.prune.reheadered.min4.asc.phy")
+dna<-read.phyDat("outputs/700/test7-maf05p-sites.sort.reheadered.min4.phy")
 dat<-as.phyDat(dna)
 set.seed(1)
 bs <- bootstrap.phyDat(dat, FUN = function(x)nj(dist.hamming(x)), 
@@ -167,7 +287,8 @@ plot(cnet, "2D", show.edge.label=TRUE)
 I can consider the Goose Lake and Warner Lakes Redbands outgroups, or at least one of them, and do some other analyses.
 ```{sh, eval=FALSE}
 #Generate treemix files, first edit header of vcf, 26002 out of 26075 sites kept
-./600.1-vcf2treemix.sh outputs/700/test7-maf05p-sites.sort.prune.vcf  outputs/700/test7.clst
+gzip outputs/700/test7-maf05p-sites.sort.prune.vcf
+./600.1-vcf2treemix.sh outputs/700/test7-maf05p-sites.sort.prune.vcf.gz  outputs/700/test7.clst
 
 
 for i in {0..5}
@@ -177,7 +298,7 @@ done
 ```
 
 Plotting
-```{r, warning=FALSE,message=FALSE}
+```{r, warning=FALSE,message=FALSE,eval=FALSE}
 library(RColorBrewer)
 library(R.utils)
 source("~/treemix/treemix-1.13/src/plotting_funcs.R")
