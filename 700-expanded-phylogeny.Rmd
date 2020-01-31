@@ -197,7 +197,44 @@ ggtree(tree2)+geom_tiplab(size=2)+geom_nodelab()
 
 ```
 
-Here, we seem to resolve MRRT as a sister lineage of coastal rainbows with low support. The backbone supports are pretty darn low.
+Here, we seem to resolve MRRT as a sister lineage of coastal rainbows with low support. The backbone supports are pretty darn low.   
+I'm curious what happens when the sampling of MRRT is altered. So, let's rotate through our populations of MRRT using the same alignment.
+
+```{sh, eval=FALSE}
+iqtree -s 1.phy.varsites.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000 --redo
+iqtree -s 2.phy.varsites.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000 --redo
+iqtree -s 3.phy.varsites.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000 --redo
+```
+
+```{r, warning=FALSE, message=FALSE}
+t1<-read.tree(file="outputs/700/subs/1.phy.varsites.phy.contree")
+ggtree(t1)+geom_tiplab()+geom_nodelab()
+
+t2<-read.tree(file="outputs/700/subs/2.phy.varsites.phy.contree")
+ggtree(t2)+geom_tiplab()+geom_nodelab()
+
+t3<-read.tree(file="outputs/700/subs/3.phy.varsites.phy.contree")
+ggtree(t3)+geom_tiplab()+geom_nodelab()
+```
+
+Finally, we may be overparameterizing, so I will conduct some model selection.   
+```{sh, eval=FALSE}
+iqtree -s test6-maf05p-sites.sort.prune.reheadered.min4.asc.phy -st DNA -m MFP+ASC -bb 1000 -alrt 1000 --redo
+```
+
+The best model is:
+Best-fit model: TVM+F+ASC+R2 chosen according to BIC
+```{r, warning=FALSE, message=FALSE}
+t4<-read.tree(file="outputs/700/subs/test6-maf05p-sites.sort.prune.reheadered.min4.asc.phy.contree")
+ggtree(t4)+geom_tiplab()+geom_nodelab()
+```
+
+And what about a coalescent tree?
+```{r, warning=FALSE, message=FALSE}
+t4<-read.nexus(file="outputs/700/subs/svdq-test.asc.tre")
+ggtree(t4)+geom_tiplab()+geom_nodelab()
+```
+
 ```{r, warning=FALSE, message=FALSE}
 library(phangorn)
 dna<-read.phyDat("outputs/700/test6-maf05p-sites.sort.prune.reheadered.min4.asc.phy")
