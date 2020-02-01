@@ -293,13 +293,17 @@ iqtree -s outputs/700/test7-maf05p-sites.sort.reheadered.min4.asc.phy -st DNA -m
 
 ```
 
-#Plot this tree
+#Plot trees
 ```{r, warning=FALSE, message=FALSE}
 tree<-read.tree(file="outputs/700/test7-maf05p-sites.sort.prune.reheadered.min4.asc.phy.contree")
 ggtree(tree)+geom_tiplab(size=2)+geom_nodelab()
 
 tree2<-read.tree(file="outputs/700/test7-maf05p-sites.sort.reheadered.min4.asc.phy.contree")
 ggtree(tree2)+geom_tiplab(size=2)+geom_nodelab()
+
+#And a coalescent tree
+tree3<-read.nexus(file="outputs/700/test7/svdq-test.asc.tre")
+ggtree(tree3)+geom_tiplab(size=2)+geom_nodelab()
 
 ```
 
