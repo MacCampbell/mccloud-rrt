@@ -1,0 +1,101 @@
+---
+title: "702-concatenated"
+author: "Mac Campbell"
+date: "2/2/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Creating sequence segments
+I have looked at a SNP-based approach. Now I can create an analysis based on gene sequences.
+
+Previously I already made some things up:
+
+```{sh, eval=FALSE}
+angsd sites index outputs/200/200-ranges.tsv
+
+angsd -P 4 -b bamlists/test5.bamlist -minInd 18  -out outputs/200/test5-maf05p-sites -minMaf 0.05 -minMapQ 30 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 -doGeno 4 -doPost 1 -postCutoff 0.95 -sites outputs/200/200-ranges.tsv -doVcf 1 > outputs/200/202.05.out 2> outputs/200/202.05.err
+
+```
+
+Two things to do (1) reheader the file (2) change the file type internally.
+```{sh, eval=FALSE}
+cp outputs/200/test5-maf05p-sites-vcf.vcf.gz outputs/700/fastas/
+
+cp outputs/200/test5-maf05p-sites-vcf.vcf.gz outputs/700/fastas/
+gunzip outputs/700/fastas/test5-maf05p-sites-vcf.vcf.gz 
+nano outputs/700/fastas/test5-maf05p-sites-vcf.vcf 
+
+#Sort
+cat outputs/700/fastas/test5-maf05p-sites-vcf.vcf | awk '$1 ~ /^#/ {print $0;next} {print $0 | "sort -k1,1 -k2,2n"}' > outputs/700/fastas/test5-maf05p-sites-sort.vcf 
+
+#Reheader
+bcftools reheader --samples bamlists/test5-sample-names.txt -o outputs/700/fastas/test5-maf05p.reheadered.vcf outputs/700/fastas/test5-maf05p-sites-sort.vcf
+
+```
+
+Now I can split the file
+```{sh, eval=FALSE}
+bcftools query -l outputs/700/fastas/test5-maf05p.reheadered.vcf | while read line; do vcf-subset outputs/700/fastas/test5-maf05p.reheadered.vcf --exclude-ref -c $line > outputs/700/fastas/inds/$line.vcf; done;
+```
+
+
+
+Make sure to do this: gatk CreateSequenceDictionary -R genome/omyV6Chr.fasta
+Argh... Now we need to bgzip and index
+
+```{sh, eval=FALSE}
+for f in outputs/700/fastas/inds/*.vcf; do bgzip $f; done;
+for f in outputs/700/fastas/inds/*.vcf.gz; do gatk IndexFeatureFile -F $f; done;
+```
+
+And to generate individual fasta. Our \*.bed is the same as \*.tsv for ranges.
+```{sh, eval=FALSE}
+cp outputs/200/200-ranges.tsv outputs/200/200-ranges.bed
+
+for f in outputs/700/fastas/inds/*.vcf.gz; do gatk FastaAlternateReferenceMaker -R genome/omyV6Chr.fasta -O outputs/700/fastas/fastas/`basename $f .vcf.gz`.fasta -V $f --use-iupac-sample `basename $f .vcf.gz` -L outputs/200/200-ranges.bed; done; 
+
+```
+
+These were a hundred genes.
+
+Let's do this again for 1,000!!!
+
+Ended up with 996. This script names the file with relative path :(   
+
+```{sh, eval=FALSE}
+mkdir outputs/700/fastas/fas
+cd outputs/700/fastas/fastas
+for f in *.fasta; do  ~/github/mccloud-rrt/204-concat-fastas.pl  $f; done;
+mv *.fas ../fas/
+cd ../fas
+#Make a bunch of nexus files
+for f in *.fas; do seqConverter.pl -d$f -on; done;
+
+Macs-MacBook-Pro-2:fas mac$ ../../../../seqConverterNexusConcatter.pl *.nex
+```
+
+Great!!! Now we have a concat.phylip   
+Macs-MacBook-Pro-2:fas mac$ head -n 1 concat.phylip   
+20	159500     
+
+Making a test tree in /Users/mac/github/mccloud-rrt/outputs/700/fastas/raxml with raxml to shake things up. 
+```{sh, eval=FALSE}
+raxmlHPC-PTHREADS-SSE3 -T 3 -s concat.phylip -m GTRGAMMA -p 123 -f a -n bestTree1000 -x 10 -# 10
+```
+
+Alignment has 958 distinct alignment patterns
+
+```{r, warning=FALSE, echo=FALSE}
+library(tidyverse)
+library(ggtree)
+library(ape)
+tree<-read.tree("outputs/700/fastas/raxml/RAxML_bipartitionsBranchLabels.bestTree1000")
+tree<-root(tree,c("LCT_GACR_10","PCT_PPP1_01"))
+ggtree(tree)+geom_tiplab(size=2)
+```
+
+Ok, so I should rework this with more genes.
