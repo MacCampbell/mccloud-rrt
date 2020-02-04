@@ -186,6 +186,8 @@ ggtree(tree2)+geom_tiplab(size=2)+geom_nodelab()
 
 ## 3 skipping it for now
 
+
+
 # Sampling seems to have a large effect.
 Let's look at test5 for example. It has these samples:
 
@@ -360,4 +362,52 @@ tree2<-read.tree(file="outputs/700/test9-maf05p.sort.reheadered.min4.asc.phy.con
 tree2<-root(tree, c("PCT_PPP1_01","LCT_GACR_10"))
 ggtree(tree2)+geom_tiplab(size=2)+geom_nodelab()
 ```
-We can also include more Sheepheaven only if we want.
+
+# Doing a multispecies coalescent analysis with "test11" excluding inversions
+I dropped the LCT samples since they don't add much for this analysis.
+
+```{sh, eval=FALSE}
+angsd -P 4 -b bamlists/test11.bamlist -minInd 43  -out outputs/700/test11-maf05p-non -minMaf 0.05 -minMapQ 30 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 -doGeno 4 -doPost 1 -postCutoff 0.95 -doVcf 1 -rf homoblocks/non-inversion.txt > outputs/700/test11-make-vcf.out 2> outputs/700/test11-make-vcf.err
+
+#Sort vcf
+gunzip -c outputs/700/test11-maf05p-non.vcf.gz | awk '$1 ~ /^#/ {print $0;next} {print $0 | "sort -k1,1 -k2,2n"}' > outputs/700/test11-maf05p-non.sort.vcf
+#Compress
+bgzip outputs/700/test11-maf05p-non.sort.vcf 
+#Index
+tabix outputs/700/test11-maf05p-non.sort.vcf.gz -f
+
+#Pruned - as input for multispecies coalescent type analyses
+bcftools +prune -l 0.9 -w 30000 outputs/700/test11-maf05p-non.sort.vcf.gz -Ov -o outputs/700/test11-maf05p-non.sort.prune.vcf
+
+#lets reheader the bam file
+bcftools reheader --samples bamlists/test11-sample-names.txt -o outputs/700/test11-maf05p-non.sort.prune.reheadered.vcf outputs/700/test11-maf05p-non.sort.prune.vcf
+
+#Convert to phylip
+./vcf2phylip.py -i outputs/700/test11-maf05p-non.sort.prune.reheadered.vcf
+
+#Correct for ascertainment bias
+source activate py3; ./103-remove-invariant.py -p outputs/700/test11-maf05p-non.sort.prune.reheadered.min4.phy -o outputs/700/test11-maf05p-non.sort.prune.reheadered.min4.asc.phy; source deactivate;
+
+#Infer a proper tree, with model testing
+iqtree -s outputs/700/test11-maf05p-non.sort.prune.reheadered.min4.asc.phy -st DNA -m MFP+ASC -bb 1000 -alrt 1000 --redo
+
+#Unpruned
+bcftools reheader --samples bamlists/test11-sample-names.txt -o outputs/700/test11-maf05p-non.sort.reheadered.vcf.gz outputs/700/test11-maf05p-non.sort.vcf.gz
+
+gunzip outputs/700/test11-maf05p-non.sort.reheadered.vcf.gz
+
+./vcf2phylip.py -i outputs/700/test11-maf05p-non.sort.reheadered.vcf
+
+source activate py3; ./103-remove-invariant.py -p outputs/700/test11-maf05p-non.sort.reheadered.min4.phy -o outputs/700/test11-maf05p-non.sort.reheadered.min4.asc.phy; source deactivate;
+
+iqtree -s outputs/700/test11-maf05p-non.sort.reheadered.min4.asc.phy -st DNA -m MFP+ASC  -bb 1000 -alrt 1000 --redo
+
+```
+
+```{r, warning=FALSE, message=FALSE}
+tree<-read.tree(file="outputs/700/test11-maf05p-non.sort.prune.reheadered.min4.asc.phy.contree")
+ggtree(tree)+geom_tiplab(size=2)+geom_nodelab()
+
+tree2<-read.tree(file="outputs/700/test11-maf05p-non.sort.reheadered.min4.asc.phy.contree")
+ggtree(tree2)+geom_tiplab(size=2)+geom_nodelab()
+```
