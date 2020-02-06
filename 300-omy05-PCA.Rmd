@@ -161,7 +161,7 @@ source activate py3; ./103-remove-invariant.py -p outputs/300/test4-omy05-genoty
 
 #203 sites~
 
-iqtree -s outputs/300/test4-omy05-genotypes-omy05.asc.phy -st DNA -m GTR+G4+F+ASC -bb 1000 -alrt 1000
+iqtree -s outputs/300/test4-omy05-genotypes-omy05.asc.phy -st DNA -m MFP+ASC -bb 1000 -alrt 1000 --redo
 ```
 
 Drum roll .....   

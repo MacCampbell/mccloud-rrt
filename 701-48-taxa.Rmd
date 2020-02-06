@@ -184,9 +184,91 @@ tree2<-root(tree, c("PCT_PPP1_01","LCT_GACR_10"))
 ggtree(tree2)+geom_tiplab(size=2)+geom_nodelab()
 ```
 
-## 3 skipping it for now
+## 3 Excluding Inversions and Tetrasomically Pairing Genomic Regions
+```{sh, eval=FALSE}
+angsd -P 4 -b bamlists/test10.bamlist -minInd 45  -out outputs/700/test10-maf05p-sites -minMaf 0.05 -minMapQ 30 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 -doGeno 4 -doPost 1 -postCutoff 0.95 -doVcf 1 -rf homoblocks/non-tetrasomic-non-inversion.txt > outputs/700/test10-make-vcf.out 2> outputs/700/test10-make-vcf.err
 
+#Sort vcf
+gunzip -c outputs/700/test10-maf05p-sites.vcf.gz | awk '$1 ~ /^#/ {print $0;next} {print $0 | "sort -k1,1 -k2,2n"}' > outputs/700/test10-maf05p-sites.sort.vcf
+#Compress
+bgzip outputs/700/test10-maf05p-sites.sort.vcf 
+#Index
+tabix outputs/700/test10-maf05p-sites.sort.vcf.gz -f
 
+#Pruned - as input for multispecies coalescent type analyses
+bcftools +prune -l 0.9 -w 30000 outputs/700/test10-maf05p-sites.sort.vcf.gz -Ov -o outputs/700/test10-maf05p-sites.sort.prune.vcf
+
+#lets reheader the bam file
+bcftools reheader --samples bamlists/test10-sample-names.txt -o outputs/700/test10-maf05p-sites.sort.prune.reheadered.vcf outputs/700/test10-maf05p-sites.sort.prune.vcf
+
+#Convert to phylip
+./vcf2phylip.py -i outputs/700/test10-maf05p-sites.sort.prune.reheadered.vcf
+
+#Correct for ascertainment bias
+source activate py3; ./103-remove-invariant.py -p outputs/700/test10-maf05p-sites.sort.prune.reheadered.min4.phy -o outputs/700/test10-maf05p-sites.sort.prune.reheadered.min4.asc.phy; source deactivate;
+
+#Infer a proper tree, with model testing
+iqtree -s outputs/700/test10-maf05p-sites.sort.prune.reheadered.min4.asc.phy -st DNA -m MFP+ASC -bb 1000 -alrt 1000 --redo
+
+#Unpruned
+bcftools reheader --samples bamlists/test10-sample-names.txt -o outputs/700/test10-maf05p-sites.sort.reheadered.vcf.gz outputs/700/test10-maf05p-sites.sort.vcf.gz
+
+gunzip outputs/700/test10-maf05p-sites.sort.reheadered.vcf.gz
+
+./vcf2phylip.py -i outputs/700/test10-maf05p-sites.sort.reheadered.vcf
+
+source activate py3; ./103-remove-invariant.py -p outputs/700/test10-maf05p-sites.sort.reheadered.min4.phy -o outputs/700/test10-maf05p-sites.sort.reheadered.min4.asc.phy; source deactivate;
+
+iqtree -s outputs/700/test10-maf05p-sites.sort.reheadered.min4.asc.phy -st DNA -m MFP+ASC  -bb 1000 -alrt 1000 --redo
+
+```
+Alignment has 47 sequences with 8500 columns, 8480 distinct patterns
+5677 parsimony-informative, 2823 singleton sites, 0 constant sites
+ 
+
+```{r, warning=FALSE, message=FALSE}
+tree<-read.tree(file="outputs/700/test10-maf05p-sites.sort.prune.reheadered.min4.asc.phy.contree")
+tree<-root(tree, c("PCT_PPP1_01","LCT_GACR_10"))
+ggtree(tree)+geom_tiplab(size=2)+geom_nodelab()
+
+tree2<-read.tree(file="outputs/700/test10-maf05p-sites.sort.reheadered.min4.asc.phy.contree")
+tree2<-root(tree, c("PCT_PPP1_01","LCT_GACR_10"))
+ggtree(tree2)+geom_tiplab(size=2)+geom_nodelab()
+```
+
+```{r, warning=FALSE, message=FALSE}
+library(phangorn)
+dna<-read.phyDat("outputs/700/test10-maf05p-sites.sort.prune.reheadered.min4.asc.phy")
+dat<-as.phyDat(dna)
+set.seed(1)
+bs <- bootstrap.phyDat(dat, FUN = function(x)nj(dist.hamming(x)), 
+    bs=100)
+tree <- nj(dist.hamming(dat))
+ree<-root(tree, c("PCT_PPP1_01\t","LCT_GACR_10\t"))
+
+par("mar" = rep(1, 4))
+tree <- plotBS(tree, bs, "phylogram")
+
+#By default prob=0.3
+cnet <- consensusNet(bs, .2)
+plot(cnet, "2D", show.edge.label=TRUE)
+
+dna<-read.phyDat("outputs/700/test10-maf05p-sites.sort.reheadered.min4.asc.phy")
+dat<-as.phyDat(dna)
+set.seed(1)
+bs <- bootstrap.phyDat(dat, FUN = function(x)nj(dist.hamming(x)), 
+    bs=100)
+tree <- nj(dist.hamming(dat))
+tree<-root(tree, c("PCT_PPP1_01\t","LCT_GACR_10\t"))
+
+par("mar" = rep(1, 4))
+tree <- plotBS(tree, bs, "phylogram")
+
+#By default prob=0.3
+cnet <- consensusNet(bs, .2)
+plot(cnet, "2D", show.edge.label=TRUE)
+
+```
 
 # Sampling seems to have a large effect.
 Let's look at test5 for example. It has these samples:
@@ -410,4 +492,40 @@ ggtree(tree)+geom_tiplab(size=2)+geom_nodelab()
 
 tree2<-read.tree(file="outputs/700/test11-maf05p-non.sort.reheadered.min4.asc.phy.contree")
 ggtree(tree2)+geom_tiplab(size=2)+geom_nodelab()
+```
+
+#How about a network?
+
+```{r, warning=FALSE, message=FALSE}
+library(phangorn)
+dna<-read.phyDat("outputs/700/test11-maf05p-non.sort.prune.reheadered.min4.asc.phy")
+dat<-as.phyDat(dna)
+set.seed(1)
+bs <- bootstrap.phyDat(dat, FUN = function(x)nj(dist.hamming(x)), 
+    bs=100)
+tree <- nj(dist.hamming(dat))
+#tree<-root(tree, c("PCT_PPP1_01\t","LCT_GACR_10\t"))
+
+par("mar" = rep(1, 4))
+tree <- plotBS(tree, bs, "phylogram")
+
+#By default prob=0.3
+cnet <- consensusNet(bs, .2)
+plot(cnet, "2D", show.edge.label=TRUE)
+
+dna<-read.phyDat("outputs/700/test11-maf05p-non.sort.reheadered.min4.asc.phy")
+dat<-as.phyDat(dna)
+set.seed(1)
+bs <- bootstrap.phyDat(dat, FUN = function(x)nj(dist.hamming(x)), 
+    bs=100)
+tree <- nj(dist.hamming(dat))
+#tree<-root(tree, c("PCT_PPP1_01\t","LCT_GACR_10\t"))
+
+par("mar" = rep(1, 4))
+tree <- plotBS(tree, bs, "phylogram")
+
+#By default prob=0.3
+cnet <- consensusNet(bs, .2)
+plot(cnet, "2D", show.edge.label=TRUE)
+
 ```

@@ -82,3 +82,56 @@ ggplot(df2)+geom_bar(aes(x=Population, y=Alleles),stat="identity")+
   theme_bw()+
   theme(panel.grid = element_blank())
 ```
+
+
+## Private Alleles
+I think we can agree that MRRT are bottleneckedd. The question I have is it distinctive from other trout, or was it bottlnecked from a source Coastal Rainbow Trout ancestral population? One way to get at this is if MRRT has a lot of private alleles? This probably isn't the data set for it, but I can rework something else I did previously and this idea may be expanded upon later.
+
+```{r, message=FALSE, warning=FALSE}
+library(adegenet)
+library(poppr)
+library(vcfR)
+```
+
+```{r, warning=FALSE, message=FALSE, eval=FALSE}
+#Creating sample names
+meta <- read_tsv("bamlists/test7.bamlist", col_names = FALSE) %>% mutate(Bam=gsub("bams/","",X1)) %>% 
+  mutate(Sample=gsub("bams/","",Bam))
+meta$Sample=gsub("_0\\d_RA.sort.flt.bam","",meta$Sample)
+
+vcf<-read.vcfR("outputs/700/test7-maf05p-sites.sort.reheadered.vcf")
+genind<-vcfR2genind(vcf)
+genind@pop<-as.factor(meta$Sample)
+
+
+popdata<-poppr(genind)
+df<-private_alleles(genind, form = alleles ~  ., report="data.frame")
+
+save(genind, file="outputs/700/test7-genind.rda")
+save(popdata, file="outputs/700/test7-popdata.rda")
+save(df, file="outputs/700/test7-df.rda")
+
+```
+
+```{r, warning=FALSE, message=FALSE}
+load(file="outputs/700/test7-popdata.rda")
+load(file="outputs/700/test7-df.rda")
+popdata <- rename(popdata, Population=Pop)
+
+
+df2<-as_tibble(df) %>% group_by(population) %>% mutate(Sum=sum(count)) %>% select(population, Sum) %>% unique() %>% ungroup() %>% mutate(Total=sum(Sum)) %>% rename(Population=population)
+
+df2<-df2 %>% left_join(popdata) %>% mutate(Alleles=Sum/N) %>% mutate(Mean=mean(Alleles))
+
+#df2$Population<-factor(df2$Population, levels=c("MRRT","CAGT","LKGT","KRNB","WLRT","REDB","EGLK","NFAR","HRNB","STLH"))
+
+
+ggplot(df2)+geom_bar(aes(x=Population, y=Alleles),stat="identity")+
+  ggtitle("Average Number of Private Alleles per Individual\nin Each Sampling Location")+
+ geom_hline(yintercept = unique(df2$Mean), alpha=0.75)+
+  theme_bw()+
+  theme(panel.grid = element_blank())+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+MRRT Moosehead have a few more than the average, otherwise RED_EDSN and REDB_SHPN don't have a whole lot of private alleles. I think going forward I need to think about
