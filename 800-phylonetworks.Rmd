@@ -1,0 +1,52 @@
+---
+title: "800-phylonetworks"
+author: "Mac Campbell"
+date: "February 10, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# How to make a network?
+I have been struggling to make a proper phylogenetic network from SNP data. That is, to construct a multispecies coalescent network model it just hasn't been happening.  
+
+Olave and Meyer (2020) present a may to calculate concordance factors from a phylip formatted file for input into PhyloNetworks.  So, let's try that.
+
+First I cloned https://github.com/melisaolave/SNPs2CF.
+Required dependencies.    
+install.packages("foreach")    
+install.packages("doMC")     
+
+```{r, warning=FALSE, message=FALSE}
+source("~/github/SNPs2CF/functions.R")
+```
+
+```{r, warning=FALSE, message=FALSE, eval=FALSE}
+#try the test data
+output <- SNPs2CF(seqMatrix="~/github/SNPs2CF/examples/5taxa-30K_SNPs.phy", max.SNPs = 1000, bootstrap=FALSE, outputName="outputs/800/SNPs2CF_5taxa-1K_SNPs.csv", save.progress=FALSE);
+
+#We can bootstrap the test data
+outputbs <- SNPs2CF(seqMatrix="~/github/SNPs2CF/examples/5taxa-30K_SNPs.phy", max.SNPs = 1000, bootstrap=TRUE, outputName="outputs/800/SNPs2CF_5taxa-1K_SNPs-bootstrap.csv", save.progress=FALSE);
+
+#We can also specify a multiple species/ind like so:
+outputsp <- SNPs2CF(seqMatrix="~/github/SNPs2CF/examples/5taxa-2ind-30K_SNPs.phy", ImapName="~/github/SNPs2CF/examples/Imap.txt", between.sp.only = FALSE, max.SNPs = 50, bootstrap=FALSE, outputName="outputs/800/5taxa-2ind-1K_SNPs.phy-allQuart.csv", save.progress=FALSE);
+
+```
+
+
+For our data, let's choose a dataset that is representative, but, maybe small. Also need unlinked SNPs, but not necessarily corrected for asc bias in ML analysis, "test6-maf05p-sites.sort.prune.reheadered.min4.phy"
+
+Test6.       
+
+I need to make an Imap file. Done.    
+Using all my snps and three cores. This will still take a hot minute.
+```{r, warning=FALSE, message=FALE, eval=FALSE}
+output <- SNPs2CF(seqMatrix="outputs/800/test6-maf05p-sites.sort.prune.reheadered.min4.phy",
+                  ImapName="outputs/800/test6-imap.txt", between.sp.only = TRUE, max.SNPs = NULL,
+                  bootstrap=FALSE, outputName="outputs/800/test6-AllSNP-btsp.csv",
+                  save.progress=FALSE,
+                  cores = 3);
+```
+

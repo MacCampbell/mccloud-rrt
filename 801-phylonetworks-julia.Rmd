@@ -1,0 +1,22 @@
+---
+title: "801-phylonetworks-julia"
+output: html_notebook
+---
+
+# Trying out Julia
+
+using PhyloNetworks;    
+using CSV, DataFrames;     
+dat = CSV.read("/Users/mac/github/mccloud-rrt/outputs/800/test6-AllSNP-btsp.csv");    
+CF = readTableCF(dat)
+
+using PhyloPlots;    
+treefile = joinpath("/Users/mac/github/mccloud-rrt/outputs/800/test6-svdq/tree.tre");
+#tree = readTopology(treefile);     
+#plot(tree, :R, showEdgeLength=true);
+
+T=readTopologyLevel1(treefile);    
+
+# Using snaq!
+net0 = snaq!(T,CF, hmax=0, filename="/Users/mac/github/mccloud-rrt/outputs/800/net0", seed=1234);      
+net1 = snaq!(T,CF, hmax=1, filename="/Users/mac/github/mccloud-rrt/outputs/800/net0", seed=1234);      
