@@ -1,0 +1,215 @@
+---
+title: "802-more-networks"
+author: "Mac Campbell"
+date: "February 14, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Networks are taking forever, and, they aren't showing much hybridization where I care.
+Using a small list of samples to focus on the species of interest. A test12.bamlist of:
+
+REDB_SHPN_01   
+REDB_SHPN_02    
+REDB_EDSN_01   
+REDB_EDSN_04   
+RAIN_EGLK_01    
+RAIN_EGLK_02    
+RAIN_NFAR_02    
+RAIN_NFAR_05    
+STLH_LYBA_01   
+STLH_LYBA_02    
+HRNB_COLE_01   
+HRNB_COLE_02    
+
+```{sh, eval=FALSE}
+angsd -P 4 -b bamlists/test12.bamlist -minInd 11  -out outputs/800/test12-maf05p-sites -minMaf 0.05 -minMapQ 30 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 -doGeno 4 -doPost 1 -postCutoff 0.95 -doVcf 1 -rf homoblocks/non-tetrasomic-non-inversion.txt > outputs/800/test12-make-vcf.out 2> outputs/800/test12-make-vcf.err
+
+#Sort vcf
+gunzip -c outputs/800/test12-maf05p-sites.vcf.gz | awk '$1 ~ /^#/ {print $0;next} {print $0 | "sort -k1,1 -k2,2n"}' > outputs/800/test12-maf05p-sites.sort.vcf
+#Compress
+bgzip outputs/800/test12-maf05p-sites.sort.vcf 
+#Index
+tabix outputs/800/test12-maf05p-sites.sort.vcf.gz -f
+
+#Pruned - as input for multispecies coalescent type analyses
+bcftools +prune -l 0.9 -w 30000 outputs/800/test12-maf05p-sites.sort.vcf.gz -Ov -o outputs/800/test12-maf05p-sites.sort.prune.vcf
+
+#lets reheader the bam file
+bcftools reheader --samples bamlists/test12-sample-names.txt -o outputs/800/test12-maf05p-sites.sort.prune.reheadered.vcf outputs/800/test12-maf05p-sites.sort.prune.vcf
+
+#Convert to phylip
+./vcf2phylip.py -i outputs/800/test12-maf05p-sites.sort.prune.reheadered.vcf
+
+#Correct for ascertainment bias
+source activate py3; ./103-remove-invariant.py -p outputs/800/test12-maf05p-sites.sort.prune.reheadered.min4.phy -o outputs/800/test12-maf05p-sites.sort.prune.reheadered.min4.asc.phy; source deactivate;
+
+#Infer a proper tree, with model testing
+iqtree -s outputs/800/test12-maf05p-sites.sort.prune.reheadered.min4.asc.phy -st DNA -m MFP+ASC -bb 1000 -alrt 1000 --redo
+
+#Unpruned
+bcftools reheader --samples bamlists/test12-sample-names.txt -o outputs/800/test12-maf05p-sites.sort.reheadered.vcf.gz outputs/800/test12-maf05p-sites.sort.vcf.gz
+
+gunzip outputs/800/test12-maf05p-sites.sort.reheadered.vcf.gz
+
+./vcf2phylip.py -i outputs/800/test12-maf05p-sites.sort.reheadered.vcf
+
+source activate py3; ./103-remove-invariant.py -p outputs/800/test12-maf05p-sites.sort.reheadered.min4.phy -o outputs/800/test12-maf05p-sites.sort.reheadered.min4.asc.phy; source deactivate;
+
+iqtree -s outputs/800/test12-maf05p-sites.sort.reheadered.min4.asc.phy -st DNA -m MFP+ASC  -bb 1000 -alrt 1000 --redo
+
+```
+
+Let's look at those concatenated trees!
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(ggtree)
+library(ape)
+
+tree<-read.tree(file="outputs/800/test12-maf05p-sites.sort.prune.reheadered.min4.asc.phy.contree")
+ggtree(tree)+geom_tiplab(size=2)+geom_nodelab()
+
+tree2<-read.tree(file="outputs/800/test12-maf05p-sites.sort.reheadered.min4.asc.phy.contree")
+ggtree(tree2)+geom_tiplab(size=2)+geom_nodelab()
+```
+
+Let's take a look at the neighbor-net.
+```{r nnet, echo=FALSE, fig.cap="Neighbor-Net", out.width = '100%'}
+knitr::include_graphics("outputs/800/test12-neighbornet/test12.jpg")
+```
+
+```{r, warning=FALSE, message=FALSE}
+library(phangorn)
+dna<-read.phyDat("outputs/800/test12-maf05p-sites.sort.reheadered.min4.asc.phy")
+dat<-as.phyDat(dna)
+set.seed(1)
+bs <- bootstrap.phyDat(dat, FUN = function(x)nj(dist.hamming(x)), 
+    bs=100)
+tree <- nj(dist.hamming(dat))
+
+par("mar" = rep(1, 4))
+tree <- plotBS(tree, bs, "phylogram")
+
+#By default prob=0.3
+cnet <- consensusNet(bs, .25)
+plot(cnet, "2D", show.edge.label=TRUE)
+
+
+```
+
+Let's treat these as taxonomic entities (O. m. stonei, O. m. aquilarum, O. m. irideus) and try to ge some estimate of hybridization.    
+
+```{r, warning=FALSE, message=FALSE}
+source("~/github/SNPs2CF/functions.R")
+```
+
+```{r, warning=FALSE, message=FALE, eval=FALSE}
+output <- SNPs2CF(seqMatrix="outputs/800/test12-maf05p-sites.sort.prune.reheadered.min4.asc.phy",
+                  ImapName="outputs/800/test12-imap.txt", between.sp.only = TRUE, max.SNPs = NULL,
+                  bootstrap=FALSE, outputName="outputs/800/test12-AllSNP-btsp.csv",
+                  save.progress=FALSE,
+                  cores = 1);
+```
+
+
+Next to make a starting tree with svdquartets.
+```{r, warning=FALSE, message=FALSE}
+stree<-read.nexus(file="outputs/800/test12-svdq/svdq-test.asc.tre")
+write.tree(stree, file="outputs/800/test12-svdq/tree.tre")
+
+stree<-root(stree, c("stoneiSHPN","stoneiEDSN"))
+ggtree(stree, branch.length = "none")+geom_tiplab(size=6)+geom_nodelab() + xlim(0,4)
+```
+
+
+Now in Julia we can run:
+
+using PhyloNetworks;    
+using CSV, DataFrames;  
+using PhyloPlots;    
+
+dat = CSV.read("/Users/mac/github/mccloud-rrt/outputs/800/test12-AllSNP-btsp.csv");    
+CF = readTableCF(dat)
+treefile = joinpath("/Users/mac/github/mccloud-rrt/outputs/800/test12-svdq/tree.tre");
+T=readTopologyLevel1(treefile);    
+
+# Using snaq!
+net0 = snaq!(T,CF, hmax=0, filename="/Users/mac/github/mccloud-rrt/outputs/800/test12/net0", seed=1234);      
+
+net1 = snaq!(T,CF, hmax=1, filename="/Users/mac/github/mccloud-rrt/outputs/800/test12/net1", seed=1234);      
+
+net2 = snaq!(T,CF, hmax=2, filename="/Users/mac/github/mccloud-rrt/outputs/800/test12/net2", seed=1234);      
+
+net3 = snaq!(T,CF, hmax=3, filename="/Users/mac/github/mccloud-rrt/outputs/800/test12/net3", seed=1234);   
+
+net4 = snaq!(T,CF, hmax=4, filename="/Users/mac/github/mccloud-rrt/outputs/800/test12/net4", seed=1234);   
+
+
+#Results
+MaxNet is (((irideushrnb,irideus):0.023042031379435956,aquilarum):1.3027130400978963,stoneiEDSN,stoneiSHPN); 
+with -loglik 78.84695269174999
+
+MaxNet is (stoneiEDSN,stoneiSHPN,((irideus,(irideushrnb,(aquilarum)#H6:::0.916333232057464):0.044231857832183294):0.6771801493422236,#H6:::0.08366676794253605):0.6746142282665805); 
+with -loglik 70.57778030055296
+
+MaxNet is (stoneiSHPN,stoneiEDSN,((irideus,(irideushrnb,(aquilarum)#H6:::0.9163338951641281):0.04423171852538079):0.6771857552407586,#H6:::0.08366610483587186):0.6746087091338858); 
+with -loglik 70.57778030053119
+
+MaxNet is (stoneiEDSN,stoneiSHPN,(((irideushrnb,(aquilarum)#H6:::0.9163318093571158):0.04423190985856614,irideus):0.6771660447889098,#H6:::0.08366819064288424):0.6746277297833594); 
+with -loglik 70.57778030087604
+
+Let's take a look at it.
+```{r phylonet, echo=FALSE, fig.cap="Neighbor-Net", out.width = '100%'}
+knitr::include_graphics("outputs/800/test12/net1.gadfly.jpg")
+```
+
+There is about 0.916 contribution from the irideus lineage and 0.084 contributionfrom some archaic lineage. O. m. stonei sampling locations are clearly distinctive and here, not reticulated.
+
+## I think I'll split up "irideus" into sampling locations.
+
+```{r, warning=FALSE, message=FALE, eval=FALSE}
+output <- SNPs2CF(seqMatrix="outputs/800/test12-maf05p-sites.sort.prune.reheadered.min4.asc.phy",
+                  ImapName="outputs/800/test12-1-imap.txt", between.sp.only = TRUE, max.SNPs = NULL,
+                  bootstrap=FALSE, outputName="outputs/800/test12-1-AllSNP-btsp.csv",
+                  save.progress=FALSE,
+                  cores = 1);
+```
+
+
+Then make a starting tree with svdquartets
+```{r, warning=FALSE, message=FALSE}
+stree<-read.nexus(file="outputs/800/test12-1-svdq/svdq-test.asc.tre")
+write.tree(stree, file="outputs/800/test12-1-svdq/tree.tre")
+
+stree<-root(stree, c("stoneiSHPN","stoneiEDSN"))
+ggtree(stree, branch.length = "none")+geom_tiplab(size=6)+geom_nodelab() + xlim(0,4)
+```
+
+###snaq!
+Now in Julia we can run:
+
+using PhyloNetworks;    
+using CSV, DataFrames;  
+using PhyloPlots;    
+
+dat = CSV.read("/Users/mac/github/mccloud-rrt/outputs/800/test12-1-AllSNP-btsp.csv");    
+CF = readTableCF(dat)
+treefile = joinpath("/Users/mac/github/mccloud-rrt/outputs/800/test12-1-svdq/tree.tre");
+T=readTopologyLevel1(treefile);    
+
+# Using snaq!
+net0 = snaq!(T,CF, hmax=0, filename="/Users/mac/github/mccloud-rrt/outputs/800/test12-1/net0", seed=1234);      
+
+net1 = snaq!(T,CF, hmax=1, filename="/Users/mac/github/mccloud-rrt/outputs/800/test12-1/net1", seed=1234);      
+
+net2 = snaq!(T,CF, hmax=2, filename="/Users/mac/github/mccloud-rrt/outputs/800/test12-1/net2", seed=1234);      
+
+net3 = snaq!(T,CF, hmax=3, filename="/Users/mac/github/mccloud-rrt/outputs/800/test12-1/net3", seed=1234);   
+
+net4 = snaq!(T,CF, hmax=4, filename="/Users/mac/github/mccloud-rrt/outputs/800/test12-1/net4", seed=1234);   
+
+

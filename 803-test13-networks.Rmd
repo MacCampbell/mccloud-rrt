@@ -1,0 +1,144 @@
+---
+title: "803-test13-networks.Rmd"
+author: "Mac Campbell"
+date: "February 14, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# We need five lineages for hybridization estimation
+That was annoying with test12. Creating a test13 dataset.
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+samples<-read_tsv("outputs/800/test13-imap.txt")
+samples
+```
+
+Calling SNPs as I have been and generating concatenated trees for comparison.
+
+```{sh, eval=FALSE}
+angsd -P 4 -b bamlists/test13.bamlist -minInd 15  -out outputs/800/test13-maf05p-sites -minMaf 0.05 -minMapQ 30 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 -doGeno 4 -doPost 1 -postCutoff 0.95 -doVcf 1 -rf homoblocks/non-tetrasomic-non-inversion.txt > outputs/800/test13-make-vcf.out 2> outputs/800/test13-make-vcf.err
+
+#Sort vcf
+gunzip -c outputs/800/test13-maf05p-sites.vcf.gz | awk '$1 ~ /^#/ {print $0;next} {print $0 | "sort -k1,1 -k2,2n"}' > outputs/800/test13-maf05p-sites.sort.vcf
+#Compress
+bgzip outputs/800/test13-maf05p-sites.sort.vcf 
+#Index
+tabix outputs/800/test13-maf05p-sites.sort.vcf.gz -f
+
+#Pruned - as input for multispecies coalescent type analyses
+bcftools +prune -l 0.9 -w 30000 outputs/800/test13-maf05p-sites.sort.vcf.gz -Ov -o outputs/800/test13-maf05p-sites.sort.prune.vcf
+
+#lets reheader the bam file
+bcftools reheader --samples bamlists/test13-sample-names.txt -o outputs/800/test13-maf05p-sites.sort.prune.reheadered.vcf outputs/800/test13-maf05p-sites.sort.prune.vcf
+
+#Convert to phylip
+./vcf2phylip.py -i outputs/800/test13-maf05p-sites.sort.prune.reheadered.vcf
+
+#Correct for ascertainment bias
+source activate py3; ./103-remove-invariant.py -p outputs/800/test13-maf05p-sites.sort.prune.reheadered.min4.phy -o outputs/800/test13-maf05p-sites.sort.prune.reheadered.min4.asc.phy; source deactivate;
+
+#Infer a proper tree, with model testing
+iqtree -s outputs/800/test13-maf05p-sites.sort.prune.reheadered.min4.asc.phy -st DNA -m MFP+ASC -bb 1000 -alrt 1000 --redo
+
+#Unpruned
+bcftools reheader --samples bamlists/test13-sample-names.txt -o outputs/800/test13-maf05p-sites.sort.reheadered.vcf.gz outputs/800/test13-maf05p-sites.sort.vcf.gz
+
+gunzip outputs/800/test13-maf05p-sites.sort.reheadered.vcf.gz
+
+./vcf2phylip.py -i outputs/800/test13-maf05p-sites.sort.reheadered.vcf
+
+source activate py3; ./103-remove-invariant.py -p outputs/800/test13-maf05p-sites.sort.reheadered.min4.phy -o outputs/800/test13-maf05p-sites.sort.reheadered.min4.asc.phy; source deactivate;
+
+iqtree -s outputs/800/test13-maf05p-sites.sort.reheadered.min4.asc.phy -st DNA -m MFP+ASC  -bb 1000 -alrt 1000 --redo
+
+```
+
+Let's look at those concatenated trees!
+
+```{r, warning=FALSE, message=FALSE}
+library(ggtree)
+library(ape)
+
+tree<-read.tree(file="outputs/800/test13-maf05p-sites.sort.prune.reheadered.min4.asc.phy.contree")
+tree<-root(tree, c("REDB_SHLD_01","REDB_SHLD_02","REDB_FTZH_02","REDB_FTZH_05"))
+ggtree(tree)+geom_tiplab(size=2)+geom_nodelab()
+
+tree2<-read.tree(file="outputs/800/test13-maf05p-sites.sort.reheadered.min4.asc.phy.contree")
+tree2<-root(tree2, c("REDB_SHLD_01","REDB_SHLD_02","REDB_FTZH_02","REDB_FTZH_05"))
+
+ggtree(tree2)+geom_tiplab(size=2)+geom_nodelab()
+```
+
+I can also make a neighbor-net (an implicit network).     
+Let's take a look at the neighbor-net.
+```{r nnet, echo=FALSE, fig.cap="Neighbor-Net", out.width = '100%'}
+knitr::include_graphics("outputs/800/test13-neighbornet/test13.jpg")
+```
+
+Using a species tree from svdquartets as a starting network in PhyloNetworks.
+
+```{r, warning=FALSE, message=FALSE}
+stree<-read.nexus(file="outputs/800/test13-svdq/svdq-test.asc.tre")
+write.tree(stree, file="outputs/800/test13-svdq/tree.tre")
+
+stree<-root(stree, c("newberryi"))
+ggtree(stree, branch.length = "none")+geom_tiplab(size=6)+geom_nodelab() + xlim(0,6)
+```
+
+Let's treat these as taxonomic entities (O. m. newberyyi, O. m. stonei, O. m. aquilarum, O. m. irideus & O. m. iridieus hatchery) and try to ge some estimate of hybridization.    
+
+```{r, warning=FALSE, message=FALSE}
+source("~/github/SNPs2CF/functions.R")
+```
+
+```{r, warning=FALSE, message=FALE, eval=FALSE}
+output <- SNPs2CF(seqMatrix="outputs/800/test13-maf05p-sites.sort.prune.reheadered.min4.asc.phy",
+                  ImapName="outputs/800/test13-imap.txt", between.sp.only = TRUE, max.SNPs = NULL,
+                  bootstrap=FALSE, outputName="outputs/800/test13-AllSNP-btsp.csv",
+                  save.progress=FALSE,
+                  cores = 3);
+```
+
+Now in Julia we can run:
+
+using PhyloNetworks;
+using CSV, DataFrames;  
+
+dat = CSV.read("/Users/mac/github/mccloud-rrt/outputs/800/test13-AllSNP-btsp.csv");    
+CF = readTableCF(dat)
+treefile = joinpath("/Users/mac/github/mccloud-rrt/outputs/800/test13-svdq/tree.tre");
+T=readTopologyLevel1(treefile);    
+
+# Using snaq!
+net0 = snaq!(T,CF, hmax=0, filename="/Users/mac/github/mccloud-rrt/outputs/800/test13/net0", seed=1234);      
+
+net1 = snaq!(T,CF, hmax=1, filename="/Users/mac/github/mccloud-rrt/outputs/800/test13/net1", seed=1234);      
+
+net2 = snaq!(T,CF, hmax=2, filename="/Users/mac/github/mccloud-rrt/outputs/800/test13/net2", seed=1234);      
+
+net3 = snaq!(T,CF, hmax=3, filename="/Users/mac/github/mccloud-rrt/outputs/800/test13/net3", seed=1234);   
+
+net4 = snaq!(T,CF, hmax=4, filename="/Users/mac/github/mccloud-rrt/outputs/800/test13/net4", seed=1234);   
+
+# to plot
+using PhyloPlots;
+
+## snaq! Results
+MaxNet is (stonei,(irideushrnb,(newberryi,aquilarum):0.013478357743131743):0.04186767244185323,irideus); 
+with -loglik 167.39576702933076
+
+MaxNet is (((newberryi,(aquilarum,(irideushrnb)#H6:::0.9316344491932371):0.02289895146339226):0.057534053562161486,stonei):0.8226506848724412,irideus,#H6:::0.06836555080676286); 
+with -loglik 135.08307727529433
+
+MaxNet is ((aquilarum,(irideushrnb)#H8:::0.9316351219654814):0.0228989361762395,newberryi,(stonei,(irideus,#H8:::0.06836487803451859):0.8226645288519293):0.057534032794541896); 
+with -loglik 135.08307727529981
+
+MaxNet is ((aquilarum,(irideushrnb)#H8:::0.9316351219654814):0.0228989361762395,newberryi,(stonei,(irideus,#H8:::0.06836487803451859):0.8226645288519293):0.057534032794541896); 
+
+MaxNet is (stonei,((aquilarum,(irideushrnb)#H6:::0.9316361260537793):0.022898887217979183,newberryi):0.0575340025610841,(irideus,#H6:::0.0683638739462207):0.8226833550135388); 
+with -loglik 135.08307727529981
