@@ -50,3 +50,17 @@ output <- SNPs2CF(seqMatrix="outputs/800/test6-maf05p-sites.sort.prune.reheadere
                   cores = 3);
 ```
 
+
+#Credibility Intervals
+To bootstrap I need to put together CF's with CIs
+
+```{r, warning=FALSE, message=FALE, eval=FALSE}
+ciout <- SNPs2CF(seqMatrix="outputs/800/test6-maf05p-sites.sort.prune.reheadered.min4.phy",
+                  ImapName="outputs/800/test6-imap.txt", between.sp.only = TRUE, max.SNPs = NULL,
+                  bootstrap=TRUE, boots.rep=1000,
+                  outputName="outputs/800/test6-AllSNP-btsp-CI.csv",
+                  save.progress=FALSE,
+                  cores = 3);
+```
+
+
