@@ -64,3 +64,4 @@ ciout <- SNPs2CF(seqMatrix="outputs/800/test6-maf05p-sites.sort.prune.reheadered
 ```
 
 
+
