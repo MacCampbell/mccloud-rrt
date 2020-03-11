@@ -82,7 +82,15 @@ ggtree(t2,branch.length = "none")+geom_tiplab(size=4)+geom_nodelab()+xlim(0,8)
 ggsave("outputs/900/svdq/svdq-test.asc.jpg", width=7, height=5)
 ```
 
+For consistency, I can split this by sampling location.
+```{r, warning=FALSE, message=FALSE, out.width='75%'}
+t2<-read.nexus(file="outputs/900/svdq/sampling-locations-test.asc.tre")
+t2<-root(t2, c("LCT"))
+ggtree(t2,branch.length = "none")+geom_tiplab(size=3)+geom_nodelab()+xlim(0,9)
+ggsave("outputs/900/svdq/svdq-test.asc.jpg", width=7, height=5)
+```
 
+#Network
 I'll make a nexus file for analysis in splitstree.
 ```{r, eval=FALSE, warning=FALSE, message=FALSE}
 library(treeio)
