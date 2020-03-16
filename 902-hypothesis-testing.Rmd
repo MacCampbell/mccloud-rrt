@@ -1,0 +1,82 @@
+---
+title: "902-hypothesis-testing"
+author: "Mac Campbell"
+date: "March 16, 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Testing alternative hypotheses against consensus tree from IQ-TREE
+Best-fit model: TVM+F+ASC+R2 chosen according to BIC
+
+```{r, echo=FALSE, warning=FALSE}
+library(tidyverse)
+library(ggtree)
+library(ape)
+tree<-read.tree(file="outputs/900/test14-maf05p-sites.sort.prune.reheadered.min4.asc.phy.contree")
+tree<-root(tree, c("PCT_PPP1_01","LCT_GACR_10"))
+ggtree(tree)+geom_tiplab(size=2)+geom_nodelab()
+
+```
+
+Let's do some testing.    
+
+__1__  Our unconstrained tree
+```{sh, eval=FALSE}
+iqtree -s example.phy -m TVM+F+ASC+R2 -st DNA --prefix example.unconstr
+```
+
+```{r, echo=FALSE, warning=FALSE}
+tree<-read.tree(file="outputs/900/testing/example.unconstr.treefile")
+tree<-root(tree, c("PCT_PPP1_01","LCT_GACR_10"))
+ggtree(tree)+geom_tiplab(size=2)+geom_nodelab()
+
+```
+
+__2__ MRRT and Golden Trout Complex are sister
+```{sh, eval=FALSE}
+iqtree -s example.phy -m TVM+F+ASC+R2 -st DNA -g constrain1.tre --prefix example.constr1
+```
+
+```{r, eval=FALSE, message=FALSE}
+tree<-read.tree(file="outputs/900/testing/example.constr1.treefile")
+tree<-root(tree, c("PCT_PPP1_01","LCT_GACR_10"))
+ggtree(tree)+geom_tiplab(size=2)+geom_nodelab()
+```
+
+__3__ MRRT and redbands are monophyletic
+```{sh, eval=FALSE}
+iqtree -s example.phy -m TVM+F+ASC+R2 -st DNA -g constrain2.tre --prefix example.constr2 --redo
+```
+
+```{r, eval=FALSE, message=FALSE}
+tree<-read.tree(file="outputs/900/testing/example.constr2.treefile")
+tree<-root(tree, c("PCT_PPP1_01","LCT_GACR_10"))
+ggtree(tree)+geom_tiplab(size=2)+geom_nodelab()
+```
+
+# Now we combine our treefiles
+
+```{sh, eval=FALSE}
+cat example.unconstr.treefile ../test14-maf05p-sites.sort.reheadered.min4.asc.phy.contree example.constr1.treefile example.constr2.treefile > example.treels
+
+iqtree -s example.phy -z example.treels -te ../test14-maf05p-sites.sort.reheadered.min4.asc.phy.contree  -zb 10000 -zw -au -m TVM+F+ASC+R2 -st DNA -redo
+```
+
+Tree (1) unconstrained     
+Tree (2) consensus tree   
+Tree (3) constrained with CA Golden Trout Complex     
+Tree (4) constrained with other redbands     
+
+    169 Tree      logL    deltaL  bp-RELL    p-KH     p-SH    p-WKH    p-WSH       c-ELW       p-AU      
+    170 -------------------------------------------------------------------------------------------     
+    171   1 -26508.20531       0   0.667 +  0.732 +      1 +  0.732 +  0.913 +     0.666 +    0.812 +    
+    172   2  -26541.6246  33.419  0.0856 +  0.103 +   0.16 +  0.103 +  0.157 +    0.0857 +    0.117 +    
+    173   3 -26528.18073  19.975  0.0163 -  0.102 +  0.293 + 0.0636 +  0.143 +    0.0178 -   0.0437 -     
+    174   4 -26516.46065  8.2553   0.231 +  0.268 +  0.584 +  0.268 +   0.61 +     0.231 +     0.41 +     
+#Wait, what happened?
+
+The the Approximately Unbiased and RELL method reject MRRT and CA Golden Trout Complex as monophyletic.

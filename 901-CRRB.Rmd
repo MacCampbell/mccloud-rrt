@@ -90,7 +90,7 @@ ggtree(t2,branch.length = "none")+geom_tiplab(size=3)+geom_nodelab()+xlim(0,9)
 ggsave("outputs/900/svdq/svdq-test.asc.jpg", width=7, height=5)
 ```
 
-#Network
+#Networks
 I'll make a nexus file for analysis in splitstree.
 ```{r, eval=FALSE, warning=FALSE, message=FALSE}
 library(treeio)
@@ -101,4 +101,31 @@ write.nexus.data(data, file="outputs/900/splits.nex")
 
 ```{r nnet, echo=FALSE, fig.cap="Neighbor-Net", out.width = '100%'}
 knitr::include_graphics("outputs/900/splits.jpg")
+```
+
+
+I can also make a network from boostrapped NJ trees.
+
+```{r, warning=FALSE, message=FALSE}
+library(phangorn)
+dna<-read.phyDat("outputs/900/test14-maf05p-sites.sort.prune.reheadered.min4.asc.phy")
+dat<-as.phyDat(dna)
+set.seed(1)
+bs <- bootstrap.phyDat(dat, FUN = function(x)nj(dist.hamming(x)), 
+    bs=100)
+#tree <- nj(dist.hamming(dat))
+#par("mar" = rep(1, 4))
+#tree<-root(tree, c("PCT_PPP1_01\t","LCT_GACR_10\t"))
+#tree <- plotBS(tree, bs, "phylogram")
+
+#By default prob=0.3
+cnet <- consensusNet(bs, .25)
+cnet$tip.label<-gsub("\t","",cnet$tip.label)
+
+#plot(cnet, "2D", show.edge.label=TRUE)
+
+edge.col <- createLabel(cnet, tree, "black", nomatch="red")
+
+plot(cnet, show.edge.label = T, "2D", edge.color = edge.col,
+                  col.edge.label = "blue", cex=.75)
 ```
