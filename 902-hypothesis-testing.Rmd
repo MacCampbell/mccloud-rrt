@@ -2,17 +2,17 @@
 title: "902-hypothesis-testing"
 author: "Mac Campbell"
 date: "March 16, 2020"
-output: pdf_document
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
 ```
 
 #Testing alternative hypotheses against consensus tree from IQ-TREE
 Best-fit model: TVM+F+ASC+R2 chosen according to BIC
 
-```{r, echo=FALSE, warning=FALSE}
+```{r}
 library(tidyverse)
 library(ggtree)
 library(ape)
@@ -29,7 +29,7 @@ __1__  Our unconstrained tree
 iqtree -s example.phy -m TVM+F+ASC+R2 -st DNA --prefix example.unconstr
 ```
 
-```{r, echo=FALSE, warning=FALSE}
+```{r}
 tree<-read.tree(file="outputs/900/testing/example.unconstr.treefile")
 tree<-root(tree, c("PCT_PPP1_01","LCT_GACR_10"))
 ggtree(tree)+geom_tiplab(size=2)+geom_nodelab()
@@ -41,7 +41,7 @@ __2__ MRRT and Golden Trout Complex are sister
 iqtree -s example.phy -m TVM+F+ASC+R2 -st DNA -g constrain1.tre --prefix example.constr1
 ```
 
-```{r, eval=FALSE, message=FALSE}
+```{r}
 tree<-read.tree(file="outputs/900/testing/example.constr1.treefile")
 tree<-root(tree, c("PCT_PPP1_01","LCT_GACR_10"))
 ggtree(tree)+geom_tiplab(size=2)+geom_nodelab()
@@ -52,8 +52,19 @@ __3__ MRRT and redbands are monophyletic
 iqtree -s example.phy -m TVM+F+ASC+R2 -st DNA -g constrain2.tre --prefix example.constr2 --redo
 ```
 
-```{r, eval=FALSE, message=FALSE}
+```{r}
 tree<-read.tree(file="outputs/900/testing/example.constr2.treefile")
+tree<-root(tree, c("PCT_PPP1_01","LCT_GACR_10"))
+ggtree(tree)+geom_tiplab(size=2)+geom_nodelab()
+```
+
+__4__ MRRT and Coastal Rainbow Trout are monophyletic
+```{sh, eval=FALSE}
+iqtree -s example.phy -m TVM+F+ASC+R2 -st DNA -g constrain3.tre --prefix example.constr3 --redo
+```
+
+```{r}
+tree<-read.tree(file="outputs/900/testing/example.constr3.treefile")
 tree<-root(tree, c("PCT_PPP1_01","LCT_GACR_10"))
 ggtree(tree)+geom_tiplab(size=2)+geom_nodelab()
 ```
@@ -61,22 +72,38 @@ ggtree(tree)+geom_tiplab(size=2)+geom_nodelab()
 # Now we combine our treefiles
 
 ```{sh, eval=FALSE}
-cat example.unconstr.treefile ../test14-maf05p-sites.sort.reheadered.min4.asc.phy.contree example.constr1.treefile example.constr2.treefile > example.treels
+cat example.unconstr.treefile ../test14-maf05p-sites.sort.reheadered.min4.asc.phy.contree example.constr1.treefile example.constr2.treefile example.constr3.treefile > example.treels
 
 iqtree -s example.phy -z example.treels -te ../test14-maf05p-sites.sort.reheadered.min4.asc.phy.contree  -zb 10000 -zw -au -m TVM+F+ASC+R2 -st DNA -redo
+
+#Also
+#iqtree -s example.phy -z example.treels -n 0 -zb 10000 -zw -au -m TVM+F+ASC+R2 -st DNA -redo
+
 ```
 
 Tree (1) unconstrained     
 Tree (2) consensus tree   
-Tree (3) constrained with CA Golden Trout Complex     
-Tree (4) constrained with other redbands     
+Tree (3) constrained MRRT and CA Golden Trout Complex are monophyletic     
+Tree (4) constrained redbands are monophyletic     
+Tree (5) constrained MRRT+O.m.irideus are monophyletic      
 
-    169 Tree      logL    deltaL  bp-RELL    p-KH     p-SH    p-WKH    p-WSH       c-ELW       p-AU      
-    170 -------------------------------------------------------------------------------------------     
-    171   1 -26508.20531       0   0.667 +  0.732 +      1 +  0.732 +  0.913 +     0.666 +    0.812 +    
-    172   2  -26541.6246  33.419  0.0856 +  0.103 +   0.16 +  0.103 +  0.157 +    0.0857 +    0.117 +    
-    173   3 -26528.18073  19.975  0.0163 -  0.102 +  0.293 + 0.0636 +  0.143 +    0.0178 -   0.0437 -     
-    174   4 -26516.46065  8.2553   0.231 +  0.268 +  0.584 +  0.268 +   0.61 +     0.231 +     0.41 +     
+    171   1 -26508.20531       0   0.631 +  0.733 +      1 +  0.733 +  0.959 +     0.629 +    0.851 +      
+    172   2  -26541.6246  33.419  0.0832 +  0.104 +  0.173 +  0.104 +  0.167 +    0.0827 +    0.117 +     
+    173   3 -26528.18073  19.975  0.0161 -  0.107 +  0.315 + 0.0644 +  0.171 +    0.0168 -   0.0528 +     
+    174   4 -26516.46065  8.2553    0.23 +  0.267 +  0.623 +  0.267 +  0.633 +      0.23 +    0.422 +     
+    175   5 -26523.39063  15.185  0.0405 + 0.0747 +  0.418 + 0.0747 +  0.203 +     0.042 +    0.125 +     
+       
+`iqtree -s example.phy -z example.treels -n 0 -zb 10000 -zw -au -m TVM+F+ASC+R2 -st DNA -redo`   
+
+Using an initial parsimony tree to estimate model parameters instead of user supplied tree.    
+
+    170   1 -26508.08365       0   0.632 +   0.73 +      1 +   0.73 +   0.96 +     0.629 +    0.855 +      
+    171   2 -26541.67416  33.591  0.0836 +  0.102 +  0.169 +  0.102 +  0.165 +    0.0835 +     0.11 +     
+    172   3 -26528.06953  19.986  0.0145 -  0.106 +  0.315 + 0.0649 +  0.174 +    0.0168 -   0.0599 +     
+    173   4 -26516.38659  8.3029   0.227 +   0.27 +   0.63 +   0.27 +  0.638 +     0.227 +    0.425 +     
+    174   5 -26523.28594  15.202  0.0433 + 0.0754 +  0.422 + 0.0754 +  0.207 +    0.0444 +    0.112 +     
+
+Same results.    
 #Wait, what happened?
 
-The the Approximately Unbiased and RELL method reject MRRT and CA Golden Trout Complex as monophyletic.
+Some evidence that MRRT and CA Golden Trout Complex are not monophyletic.      
