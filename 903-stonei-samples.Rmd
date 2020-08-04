@@ -1,0 +1,93 @@
+---
+title: "903-stonei-samples"
+author: "Mac Campbell"
+date: "April 27, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+## To represent O. m. stonei, I'll pull some more samples
+These are in: /home/ehabibi/projects/redbandnewalign/bamfiles2     
+
+REDB_MCLD_01_RA.sort.flt.bam       
+REDB_MCLD_02_RA.sort.flt.bam     
+REDB_MCLD_07_RA.sort.flt.bam     
+REDB_MCLD_10_RA.sort.flt.bam     
+REDB_MCLD_11_RA.sort.flt.bam     
+REDB_LOST_01_RA.sort.flt.bam     
+REDB_NLSN_02_RA.sort.flt.bam      
+REDB_NLSN_03_RA.sort.flt.bam         
+REDB_DVPR_04_RA.sort.flt.bam     
+REDB_DVPR_02_RA.sort.flt.bam     
+
+REDB_MCLD_08 # file size is small (27M)     
+
+REDB_LOST all have small file size.     
+32M	REDB_LOST_01_RA.sort.flt.bam is the biggest.
+
+65M	REDB_NLSN_02_RA.sort.flt.bam     
+53M	REDB_NLSN_03_RA.sort.flt.bam    
+
+Created test15.bamlist (51 inds) and naming file. Now:     
+`Macs-MacBook-Pro-2:bams mac$ cat newbams.txt | while read line; do echo $line; scp -P 2022 farm:/home/ehabibi/projects/redbandnewalign/bamfiles2/$line .;  done;`     
+
+`cat newbams.txt | while read line; do samtools index $line; done;`    
+> (39/41)*51    
+[1] 48.5122    
+
+```{sh, eval=FALSE}
+angsd -P 4 -b bamlists/test15.bamlist -minInd 49  -out outputs/900/test15-maf05p-sites -minMaf 0.05 -minMapQ 30 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 -doGeno 4 -doPost 1 -postCutoff 0.95 -doVcf 1 -rf homoblocks/non-tetrasomic-non-inversion.txt > outputs/900/test15-make-vcf.out 2> outputs/900/test15-make-vcf.err
+
+#Sort vcf
+gunzip -c outputs/900/test15-maf05p-sites.vcf.gz | awk '$1 ~ /^#/ {print $0;next} {print $0 | "sort -k1,1 -k2,2n"}' > outputs/900/test15-maf05p-sites.sort.vcf
+#Compress
+bgzip outputs/900/test15-maf05p-sites.sort.vcf 
+#Index
+tabix outputs/900/test15-maf05p-sites.sort.vcf.gz -f
+
+#Pruned - as input for multispecies coalescent type analyses
+bcftools +prune -l 0.9 -w 30000 outputs/900/test15-maf05p-sites.sort.vcf.gz -Ov -o outputs/900/test15-maf05p-sites.sort.prune.vcf
+
+#lets reheader the bam file
+bcftools reheader --samples bamlists/test15-sample-names.txt -o outputs/900/test15-maf05p-sites.sort.prune.reheadered.vcf outputs/900/test15-maf05p-sites.sort.prune.vcf
+
+#Convert to phylip
+./vcf2phylip.py -i outputs/900/test15-maf05p-sites.sort.prune.reheadered.vcf
+
+#Correct for ascertainment bias
+source activate py3; ./103-remove-invariant.py -p outputs/900/test15-maf05p-sites.sort.prune.reheadered.min4.phy -o outputs/900/test15-maf05p-sites.sort.prune.reheadered.min4.asc.phy; source deactivate;
+
+#Infer a proper tree, with model testing
+iqtree -s outputs/900/test15-maf05p-sites.sort.prune.reheadered.min4.asc.phy -st DNA -m MFP+ASC -bb 1000 -alrt 1000 --redo
+
+
+
+```
+
+We have some admixed individuals, so it will be interesting to see where they fall out now.
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(ggtree)
+library(ape)
+
+tree<-read.tree(file="outputs/900/test15-maf05p-sites.sort.prune.reheadered.min4.asc.phy.treefile")
+tree<-root(tree, c("PCT_PPP1_01","LCT_GACR_10"))
+ggtree(tree)+geom_tiplab(size=2)+geom_nodelab(size=2)
+
+```
+
+I'll make an implicit network now.    
+```{r, eval=FALSE, warning=FALSE, message=FALSE}
+library(treeio)
+data<-read.phylip.seq("outputs/900/test15-maf05p-sites.sort.prune.reheadered.min4.asc.phy")
+write.nexus.data(data, file="outputs/900/splits15.nex")
+```
+
+
+```{r nnet, echo=FALSE, fig.cap="Neighbor-Net", out.width = '100%'}
+knitr::include_graphics("outputs/900/splits15.jpg")
+```
+

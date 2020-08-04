@@ -1,0 +1,387 @@
+---
+title: "1001-map"
+author: "Mac Campbell"
+date: "August 3, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+library(tidyverse)
+library(ggrepel)
+library(maps)
+library(mapdata)
+library(maptools)
+library(rgdal)
+library(raster)
+
+```
+
+## Get range maps from PISCES
+```{r}
+x<--122.293309
+y<-40.804313
+type<-as_tibble(cbind(x,y))
+
+range<-getKMLcoordinates("outputs/1000/histrange.kml", ignoreAltitude=TRUE)
+
+#Gives a list of six.... Would be nice to have a convex hull.
+#This doesn't seem like a smart way to do it, but oh well.
+df1<-as_tibble(range[[1]])
+df2<-as_tibble(range[[2]])
+df3<-as_tibble(range[[3]])
+df4<-as_tibble(range[[4]])
+df5<-as_tibble(range[[5]])
+df6<-as_tibble(range[[6]])
+
+#using a convex hull looks bad : (
+#mrrtrange<-df[chull(c(df$V1,df$V2)),]
+
+#Combining polygons and then getting coords for a label
+df<-rbind(df1,df2,df3,df4,df5,df6)
+
+x2<-mean(df$V1)
+y2<-mean(df$V2)
+curated<-as_tibble(cbind(x2,y2))
+
+map1<-ggplot() + 
+  geom_polygon(data=df1,aes(x=V1, y=V2), alpha=0.75, fill="red") +
+  geom_polygon(data=df2,aes(x=V1, y=V2), alpha=0.75, fill="red") +
+  geom_polygon(data=df3,aes(x=V1, y=V2), alpha=0.75, fill="red") +
+  geom_polygon(data=df4,aes(x=V1, y=V2), alpha=0.75, fill="red") +
+  geom_polygon(data=df5,aes(x=V1, y=V2), alpha=0.75, fill="red") +
+  geom_polygon(data=df6,aes(x=V1, y=V2), alpha=0.75, fill="red") +
+  geom_point(data=type, aes(x=x, y=y))+
+  geom_label_repel(data=type, aes(x=x, y=y, label="shastae and stonei \n type locality"), alpha=0.75)+
+  geom_label_repel(data=curated, aes(x=x2, y=y2, label="Historic Range of McCloud Redband Trout"), alpha=0.75)+
+  coord_fixed(ratio=1.3)+
+  theme_bw() +
+  theme(panel.grid=element_blank())+
+  xlab("Longitude")+
+  ylab("Latitude")
+
+map1
+```
+
+## We want some more native trouts
+
+```{r}
+aquilarum<-getKMLcoordinates("outputs/1000/aquilarum.kml", ignoreAltitude=TRUE)
+#7 polys
+
+range<-aquilarum
+df1<-as_tibble(range[[1]])
+df2<-as_tibble(range[[2]])
+df3<-as_tibble(range[[3]])
+df4<-as_tibble(range[[4]])
+df5<-as_tibble(range[[5]])
+df6<-as_tibble(range[[6]])
+df7<-as_tibble(range[[7]])
+
+df<-rbind(df1,df2,df3,df4,df5,df6,df7)
+
+x2<-mean(df1$V1)
+y2<-mean(df$V2)
+curated<-as_tibble(cbind(x2,y2))
+
+map2<- map1 + 
+  geom_polygon(data=df1,aes(x=V1, y=V2), alpha=0.75, fill="orange") +
+  geom_polygon(data=df2,aes(x=V1, y=V2), alpha=0.75, fill="orange") +
+  geom_polygon(data=df3,aes(x=V1, y=V2), alpha=0.75, fill="orange") +
+  geom_polygon(data=df4,aes(x=V1, y=V2), alpha=0.75, fill="orange") +
+  geom_polygon(data=df5,aes(x=V1, y=V2), alpha=0.75, fill="orange") +
+  geom_polygon(data=df6,aes(x=V1, y=V2), alpha=0.75, fill="orange") +
+  geom_polygon(data=df7,aes(x=V1, y=V2), alpha=0.75, fill="orange") +
+  geom_label_repel(data=curated, aes(x=x2, y=y2, label="Historic Range of Eagle Lake Trout"), alpha=0.75)
+
+
+map2
+```
+
+```{r}
+#aguabonita<-getKMLcoordinates("outputs/1000/aguabonita.kml", ignoreAltitude=TRUE)
+#Wow, 20 polygons, really should work with *.shp
+aguabonita<-readOGR("/Users/mac/github/mccloud-rrt/outputs/1000/f_SOM14_16/f_SOM14_16.shp","f_SOM14_16")
+
+#It is projected
+#+proj=aea +lat_1=34 +lat_2=40.5 +lat_0=0 +lon_0=-120 +x_0=0 +y_0=-4000000 +ellps=GRS80
+#+towgs84=0,0,0,0,0,0,0 +units=m +no_defs 
+
+aguaWGS <- spTransform(aguabonita, CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+agua<-fortify(aguaWGS)
+
+ggplot() + geom_polygon(data=agua,aes(x=long, y=lat, group=group), fill="red")
+
+map2+geom_polygon(data=agua,aes(x=long, y=lat, group=group), fill="red")
+```
+
+#Getting all the shapefiles
+
+```{r}
+mccloud<-readOGR("/Users/mac/github/mccloud-rrt/outputs/1000/f_SOM10_16/","f_SOM10_16")
+mccloud <- spTransform(mccloud, CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+mccloud<-fortify(mccloud)
+
+eagle<-readOGR("/Users/mac/github/mccloud-rrt/outputs/1000/f_SOM12_16/","f_SOM12_16")
+eagle <- spTransform(eagle, CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+eagle<-fortify(eagle)
+
+goose<-readOGR("/Users/mac/github/mccloud-rrt/outputs/1000/f_SOM11_16/","f_SOM11_16")
+goose <- spTransform(goose, CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+goose<-fortify(goose)
+
+kern<-readOGR("/Users/mac/github/mccloud-rrt/outputs/1000/f_SOM15_16/","f_SOM15_16")
+kern <- spTransform(kern, CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+kern<-fortify(kern)
+
+krrb<-readOGR("/Users/mac/github/mccloud-rrt/outputs/1000/f_SOM13_16/","f_SOM13_16")
+krrb <- spTransform(krrb, CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+krrb<-fortify(krrb)
+
+crt<-readOGR("/Users/mac/github/mccloud-rrt/outputs/1000/f_SOM09_16/","f_SOM09_16")
+crt <- spTransform(crt, CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+crt<-fortify(crt)
+
+
+ggplot() + 
+ # geom_polygon(data=crt, aes(x=long, y=lat, group=group), fill="skyblue", alpha=0.75) +
+  geom_polygon(data=mccloud,aes(x=long, y=lat, group=group), fill="red", alpha=0.75) +
+  geom_polygon(data=goose,aes(x=long, y=lat, group=group), fill="pink", alpha=0.75) +
+  geom_polygon(data=eagle, aes(x=long, y=lat, group=group), fill="brown", alpha=0.75) +
+  geom_polygon(data=agua,aes(x=long, y=lat, group=group), fill="goldenrod", alpha=0.75) +
+  geom_polygon(data=kern,aes(x=long, y=lat, group=group), fill="yellow", alpha=0.75) +
+  geom_polygon(data=krrb,aes(x=long, y=lat, group=group), fill="gold", alpha=0.75) +
+  coord_fixed(ratio=1.3)+
+  theme_bw() +
+  theme(panel.grid=element_blank())+
+  xlab("Longitude")+
+  ylab("Latitude")
+
+```
+
+##Raster
+And the state map
+```{r}
+
+states<-map_data("state") %>% filter(region %in% c("california","oregon","nevada"))
+
+cali<- map_data("state") %>% filter(region %in% c("california"))
+domain <- c(min(states$long), max(states$long), min(states$lat), max(states$lat))
+
+# here eric implements something and I copy it
+tidy_subset <- function(x, longlat) {
+  x@data$id <- rownames(x@data)
+  x.f <- broom::tidy(x) %>%
+    dplyr::left_join(., x@data, by = "id") %>%
+    dplyr::tbl_df() %>%
+    filter(long > longlat[1],
+           long < longlat[2],
+           lat > longlat[3],
+           lat < longlat[4])
+}
+
+
+earth<-stack("~/github/yosemite-toad/data/HYP_HR_SR/HYP_HR_SR.tif")
+earthc<-crop(earth, y=extent(domain))
+
+rast.table <- data.frame(xyFromCell(earthc, 1:ncell(earthc)),
+                         getValues(earthc/255))
+
+rast.table$rgb <- rgb(rast.table$HYP_HR_SR.1, rast.table$HYP_HR_SR.2, rast.table$HYP_HR_SR.3)
+
+lakes<-readOGR("outputs/1000/ne_10m_lakes")
+#lakes<-fortify(lakes)
+lakes<-tidy_subset(lakes, domain)
+
+rivers<-readOGR("outputs/1000/ne_10m_rivers_lake_centerlines/")
+#rivers<-fortify(rivers)
+rivers<-tidy_subset(rivers, domain)
+
+coast<-readOGR("outputs/1000/ne_10m_coastline")
+#coast<-fortify(coast)
+coast<-tidy_subset(coast, domain)
+
+oceans<-readOGR("outputs/1000/ne_10m_ocean/")
+oceansdf<-fortify(oceans)
+oceanssub<-tidy_subset(oceans, domain)
+
+ggplot()+
+  geom_raster(data = rast.table, mapping = aes(x = x, y = y), fill = rast.table$rgb, interpolate = TRUE) +
+ # geom_polygon(data=oceans,  aes(x=long, y=lat, group=group), fill="blue", alpha=0.25) +
+  geom_polygon(data=lakes, aes(x=long, y=lat, group=group), fill="blue", alpha=0.5) +
+  geom_path(data=coast, aes(x=long, y=lat, group=group), color="black", alpha=0.75) +
+  geom_path(data=rivers,aes(x=long, y=lat, group=group), color="blue", alpha=0.5) + 
+  coord_fixed(ratio=1.3, xlim = c(min(cali$long), max(cali$long)), ylim=c(min(cali$lat), max(cali$lat)))
+
+
+```
+
+
+
+##Putting it all together
+```{r,eval=FALSE}
+ggplot()+
+  geom_raster(data = rast.table, mapping = aes(x = x, y = y), fill = rast.table$rgb, interpolate = TRUE) +
+  geom_polygon(data=states, aes(x=long, y=lat, group=group), color="black", alpha=0, fill="white")+
+  geom_polygon(data=lakes, aes(x=long, y=lat, group=group), fill="blue", alpha=0.5) +
+#  geom_path(data=coast, aes(x=long, y=lat, group=group), color="black", alpha=0.75) +
+  geom_path(data=rivers,aes(x=long, y=lat, group=group), color="blue", alpha=0.5) + 
+  geom_polygon(data=crt, aes(x=long, y=lat, group=group), fill="grey50", alpha=0.75) +
+  geom_polygon(data=mccloud,aes(x=long, y=lat, group=group), fill="red", alpha=0.75) +
+  geom_polygon(data=goose,aes(x=long, y=lat, group=group), fill="pink", alpha=0.75) +
+  geom_polygon(data=eagle, aes(x=long, y=lat, group=group), fill="brown", alpha=0.75) +
+  geom_polygon(data=agua,aes(x=long, y=lat, group=group), fill="goldenrod", alpha=0.75) +
+  geom_polygon(data=kern,aes(x=long, y=lat, group=group), fill="yellow", alpha=0.75) +
+  geom_polygon(data=krrb,aes(x=long, y=lat, group=group), fill="gold", alpha=0.75) +
+  geom_point(data=type, aes(x=x, y=y)) +
+  geom_label_repel(data=type, aes(x=x, y=y, label="shastae and stonei \n type locality"),
+                   size=3, alpha=0.75)+
+  coord_fixed(ratio=1.3, xlim = c(min(cali$long), -116), ylim=c(34, max(cali$lat))) +
+  theme_bw() +
+  theme(panel.grid=element_blank())+
+  xlab("Longitude")+
+  ylab("Latitude")
+
+
+```
+
+I think the map needs....
+
+1. McCloud River
+2. Golden Trout rivers, or at least the Kern
+3. Bay filled in.
+4. Oceans.
+
+Getting a bit more detailed map.
+https://www.naturalearthdata.com/downloads/10m-raster-data/10m-natural-earth-2/
+```{r}
+
+nat.earth<-stack("~/github/mccloud-rrt/outputs/1000/NE2_HR_LC_SR_W_DR/NE2_HR_LC_SR_W_DR.tif")
+
+nat.crop <- crop(nat.earth, y=extent(domain))
+
+rast.table <- data.frame(xyFromCell(nat.crop, 1:ncell(nat.crop)),
+                         getValues(nat.crop/255))
+
+
+rast.table$rgb <- with(rast.table, rgb(NE2_HR_LC_SR_W_DR.1,
+                                       NE2_HR_LC_SR_W_DR.2,
+                                       NE2_HR_LC_SR_W_DR.3,
+                                       1))
+```
+
+```{r}
+ggplot() +
+  geom_raster(data = rast.table, mapping = aes(x = x, y = y), fill = rast.table$rgb, interpolate = TRUE) 
+
+```
+
+Oooh, that looks good.
+
+```{r}
+ggplot() +
+  geom_raster(data = rast.table, mapping = aes(x = x, y = y), fill = rast.table$rgb, interpolate = TRUE) +
+  geom_polygon(data=states, aes(x=long, y=lat, group=group), color="black", alpha=0, fill="white") +
+#  geom_polygon(data=crt, aes(x=long, y=lat, group=group), fill="grey50", alpha=0.75) +
+  geom_polygon(data=mccloud,aes(x=long, y=lat, group=group), fill="red", alpha=0.75) +
+  geom_polygon(data=goose,aes(x=long, y=lat, group=group), fill="pink", alpha=0.75) +
+  geom_polygon(data=eagle, aes(x=long, y=lat, group=group), fill="brown", alpha=0.75) +
+  geom_polygon(data=agua,aes(x=long, y=lat, group=group), fill="goldenrod", alpha=0.75) +
+  geom_polygon(data=kern,aes(x=long, y=lat, group=group), fill="yellow", alpha=0.75) +
+  geom_polygon(data=krrb,aes(x=long, y=lat, group=group), fill="gold", alpha=0.75) +
+  geom_point(data=type, aes(x=x, y=y)) +
+  geom_label_repel(data=type, aes(x=x, y=y, label="shastae and stonei \n type locality"),
+                   size=3, alpha=0.75)+
+  coord_fixed(ratio=1.3, xlim = c(min(cali$long), -116), ylim=c(34, max(cali$lat))) +
+  theme_bw() +
+  theme(panel.grid=element_blank())+
+  xlab("Longitude")+
+  ylab("Latitude")
+
+
+```
+
+
+Make some labels for the polygons
+
+```{r}
+longs<-c(type$x, -122.024996, mean(mccloud$long), mean(goose$long), mean(eagle$long), mean(agua$long), mean(kern$long), mean(krrb$long))
+lats<-c(type$y, 41.241416, mean(mccloud$lat), mean(goose$lat), mean(eagle$lat), mean(agua$lat), mean(kern$lat), mean(krrb$lat) )
+labels<-c("Type locality of \n shasta and stonei","McCloud Falls","McCloud Redband", "O. m. sp. 'Goose Lake'", "O. m. aquilarum", "O. m. aquabonita", "O. m. whitei", "O. m. gilberti")
+
+text<-tibble(longs, lats, labels)
+
+ggplot() +
+  geom_raster(data = rast.table, mapping = aes(x = x, y = y), fill = rast.table$rgb, interpolate = TRUE) +
+  geom_polygon(data=states, aes(x=long, y=lat, group=group), color="black", alpha=0, fill="white") +
+#  geom_polygon(data=crt, aes(x=long, y=lat, group=group), fill="grey50", alpha=0.75) +
+  geom_polygon(data=mccloud,aes(x=long, y=lat, group=group), fill="red", alpha=0.75) +
+  geom_polygon(data=goose,aes(x=long, y=lat, group=group), fill="pink", alpha=0.75) +
+  geom_polygon(data=eagle, aes(x=long, y=lat, group=group), fill="brown", alpha=0.75) +
+  geom_polygon(data=agua,aes(x=long, y=lat, group=group), fill="goldenrod", alpha=0.75) +
+  geom_polygon(data=kern,aes(x=long, y=lat, group=group), fill="yellow", alpha=0.75) +
+  geom_polygon(data=krrb,aes(x=long, y=lat, group=group), fill="gold", alpha=0.75) +
+  geom_point(data=type, aes(x=x, y=y)) +
+  geom_point(aes(x=-122.024996, y=41.241416), pch=17)+
+  geom_label_repel(data=text, aes(x=longs, y=lats, label=labels), size=3, alpha=0.75)+
+  coord_fixed(ratio=1.3, xlim = c(-124, -116), ylim=c(34, max(cali$lat))) +
+  theme_bw() +
+  theme(panel.grid=element_blank())+
+  xlab("Longitude")+
+  ylab("Latitude")
+
+```
+
+Eagle lake
+
+```{r}
+load("/Users/mac/Dropbox/trout/chinook/Chinook Paper/polyStreamsSub.rda")
+lakes<- subset(polyStreamsSub, polyStreamsSub$NAME %in% c(                                                         "Eagle Lake"
+                                                          
+))
+lakesdf<-fortify(lakes)
+
+
+load("/Users/mac/Dropbox/trout/chinook/Chinook Paper/streamsSub.rda")
+riversNames<-as_tibble(read.csv(file="/Users/mac/Dropbox/trout/chinook/Chinook Paper/outputs/toPlot.txt",header=T))
+riversNames$Names<-as.character(riversNames$Names)
+
+rivers<- subset(streamsSub, streamsSub$NAME %in% "McCloud River")
+riversdf<-fortify(rivers)                                                     
+
+ggplot()+
+    geom_raster(data = rast.table, mapping = aes(x = x, y = y), fill = rast.table$rgb, interpolate = TRUE) +
+    geom_polygon(data=lakesdf, aes(x=long, y=lat, group=group), fill="#69A0C5FF", color="#69A0C5FF", alpha=0.75) +
+    geom_path(data = riversdf, aes(x = long, y = lat, group=group), color="#69A0C5FF", alpha=0.75)
+
+
+```
+
+##Print it out
+```{r}
+ggplot() +
+  geom_raster(data = rast.table, mapping = aes(x = x, y = y), fill = rast.table$rgb, interpolate = TRUE) +
+#  geom_polygon(data=states, aes(x=long, y=lat, group=group), color="black", alpha=0, fill="white") +
+  geom_polygon(data=lakesdf, aes(x=long, y=lat, group=group), fill="#69A0C5FF", color="#69A0C5FF", alpha=0.75) +
+  geom_path(data = riversdf, aes(x = long, y = lat, group=group), color="#69A0C5FF", alpha=0.75) +
+  geom_polygon(data=crt, aes(x=long, y=lat, group=group), fill="grey50", alpha=0.75) +
+  geom_polygon(data=mccloud,aes(x=long, y=lat, group=group), fill="red", alpha=0.75) +
+  geom_polygon(data=goose,aes(x=long, y=lat, group=group), fill="pink", alpha=0.75) +
+  geom_polygon(data=eagle, aes(x=long, y=lat, group=group), fill="brown", alpha=0.75) +
+  geom_polygon(data=agua,aes(x=long, y=lat, group=group), fill="goldenrod", alpha=0.75) +
+  geom_polygon(data=kern,aes(x=long, y=lat, group=group), fill="yellow", alpha=0.75) +
+  geom_polygon(data=krrb,aes(x=long, y=lat, group=group), fill="gold", alpha=0.75) +
+  geom_point(data=type, aes(x=x, y=y), cex=2) +
+  geom_point(aes(x=-122.024996, y=41.241416), pch=17, cex=2)+
+  geom_label_repel(data=text, aes(x=longs, y=lats, label=labels), size=5, alpha=0.75)+
+  coord_fixed(ratio=1.3, xlim = c(-124, -116), ylim=c(34, 41.5)) +
+  theme_bw() +
+  theme(panel.grid=element_blank())+
+  theme(axis.text = element_text(size=12)) +
+  theme(axis.title = element_text(size=18)) +
+  xlab("Longitude")+
+  ylab("Latitude")
+
+ggsave("outputs/1000/draft-map.pdf", width=8.5, height=11)
+
+```
