@@ -1,0 +1,33 @@
+---
+title: "1002-warner-lakes"
+author: "Mac Campbell"
+date: "August 11, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message=FALSE)
+library(tidyverse)
+library(rgdal)
+```
+
+## I need to plot warner lakes basin
+
+HUC 17120007
+
+```{r}
+warner<-readOGR("/Users/mac/github/mccloud-rrt/outputs/1000/huc250k_shp/","huc250k")
+warner <- spTransform(warner, CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+warner <- warner[warner@data$HUC_CODE=="17120007",]
+warner <- fortify(warner)
+
+```
+
+plot
+
+```{r}
+ggplot(warner) +
+  geom_polygon(aes(x=long, y=lat, order=order))
+
+save(warner, file="outputs/1000/warner.RData")
+```

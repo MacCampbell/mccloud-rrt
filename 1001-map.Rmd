@@ -142,11 +142,14 @@ crt<-readOGR("/Users/mac/github/mccloud-rrt/outputs/1000/f_SOM09_16/","f_SOM09_1
 crt <- spTransform(crt, CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
 crt<-fortify(crt)
 
+#warner
+load("outputs/1000/warner.RData")
 
 ggplot() + 
  # geom_polygon(data=crt, aes(x=long, y=lat, group=group), fill="skyblue", alpha=0.75) +
   geom_polygon(data=mccloud,aes(x=long, y=lat, group=group), fill="red", alpha=0.75) +
   geom_polygon(data=goose,aes(x=long, y=lat, group=group), fill="pink", alpha=0.75) +
+  geom_polygon(data=warner,aes(x=long, y=lat, group=group), fill="darkred", alpha=0.75) +
   geom_polygon(data=eagle, aes(x=long, y=lat, group=group), fill="brown", alpha=0.75) +
   geom_polygon(data=agua,aes(x=long, y=lat, group=group), fill="goldenrod", alpha=0.75) +
   geom_polygon(data=kern,aes(x=long, y=lat, group=group), fill="yellow", alpha=0.75) +
@@ -346,15 +349,27 @@ load("/Users/mac/Dropbox/trout/chinook/Chinook Paper/streamsSub.rda")
 riversNames<-as_tibble(read.csv(file="/Users/mac/Dropbox/trout/chinook/Chinook Paper/outputs/toPlot.txt",header=T))
 riversNames$Names<-as.character(riversNames$Names)
 
-rivers<- subset(streamsSub, streamsSub$NAME %in% "McCloud River")
+rivers<- subset(streamsSub, streamsSub$NAME %in% c("McCloud River", "Pit River"))
 riversdf<-fortify(rivers)                                                     
 
 ggplot()+
     geom_raster(data = rast.table, mapping = aes(x = x, y = y), fill = rast.table$rgb, interpolate = TRUE) +
     geom_polygon(data=lakesdf, aes(x=long, y=lat, group=group), fill="#69A0C5FF", color="#69A0C5FF", alpha=0.75) +
-    geom_path(data = riversdf, aes(x = long, y = lat, group=group), color="#69A0C5FF", alpha=0.75)
+    geom_path(data = riversdf, aes(x = long, y = lat, group=group), color="blue", alpha=0.75)
 
 
+```
+
+## Get some collection information
+```{r}
+points<-read_csv("~/Dropbox/Redband Trout/mac-mrrt-manuscript/trout-collections-for-plotting-pure.csv") %>%
+  dplyr::select(Latitude, Longitude, `Location Code`)
+
+colls<-points %>% unique() %>% filter(Latitude !="NA")
+
+ggplot() +
+  geom_point(data=colls, aes(x=Longitude, y=Latitude)) +
+  geom_text_repel(data=colls, aes(x=Longitude, y=Latitude, label=`Location Code`))
 ```
 
 ##Print it out
@@ -363,18 +378,24 @@ ggplot() +
   geom_raster(data = rast.table, mapping = aes(x = x, y = y), fill = rast.table$rgb, interpolate = TRUE) +
 #  geom_polygon(data=states, aes(x=long, y=lat, group=group), color="black", alpha=0, fill="white") +
   geom_polygon(data=lakesdf, aes(x=long, y=lat, group=group), fill="#69A0C5FF", color="#69A0C5FF", alpha=0.75) +
-  geom_path(data = riversdf, aes(x = long, y = lat, group=group), color="#69A0C5FF", alpha=0.75) +
-  geom_polygon(data=crt, aes(x=long, y=lat, group=group), fill="grey50", alpha=0.75) +
+  geom_path(data = riversdf, aes(x = long, y = lat, group=group), color="blue", size=1.5, alpha=0.75) +
+  geom_polygon(data=crt, aes(x=long, y=lat, group=group), fill="grey50", alpha=0.5) +
   geom_polygon(data=mccloud,aes(x=long, y=lat, group=group), fill="red", alpha=0.75) +
   geom_polygon(data=goose,aes(x=long, y=lat, group=group), fill="pink", alpha=0.75) +
+  geom_polygon(data=warner,aes(x=long, y=lat, group=group), fill="darkred", alpha=0.75) +
   geom_polygon(data=eagle, aes(x=long, y=lat, group=group), fill="brown", alpha=0.75) +
   geom_polygon(data=agua,aes(x=long, y=lat, group=group), fill="goldenrod", alpha=0.75) +
   geom_polygon(data=kern,aes(x=long, y=lat, group=group), fill="yellow", alpha=0.75) +
   geom_polygon(data=krrb,aes(x=long, y=lat, group=group), fill="gold", alpha=0.75) +
-  geom_point(data=type, aes(x=x, y=y), cex=2) +
+  geom_point(data=type, aes(x=x, y=y), cex=2, pch=15) +
   geom_point(aes(x=-122.024996, y=41.241416), pch=17, cex=2)+
-  geom_label_repel(data=text, aes(x=longs, y=lats, label=labels), size=5, alpha=0.75)+
-  coord_fixed(ratio=1.3, xlim = c(-124, -116), ylim=c(34, 41.5)) +
+  geom_point(data=colls, aes(x=Longitude, y=Latitude)) +
+  geom_text_repel(data=colls, aes(x=Longitude, y=Latitude, label=`Location Code`)) +
+  geom_text_repel(aes(x=c(-121.507590,-122.077220,-122.337596,-122.017381), 
+                      y=c(40.971201, 41.172051,  40.757050,  39.761715),
+                      label=c("Pit River", "McCloud River", "Shasta Lake", "Sacramento River"))) +
+  geom_label_repel(data=text, aes(x=longs, y=lats, label=labels), size=4, alpha=0.75)+
+  coord_fixed(ratio=1.3, xlim = c(-124, -117.5), ylim=c(35.25, 41.9)) +
   theme_bw() +
   theme(panel.grid=element_blank())+
   theme(axis.text = element_text(size=12)) +
@@ -382,6 +403,6 @@ ggplot() +
   xlab("Longitude")+
   ylab("Latitude")
 
-ggsave("outputs/1000/draft-map.pdf", width=8.5, height=11)
+ggsave("outputs/1000/draft-map.pdf", width=8.5*0.75, height=11*0.75)
 
 ```
