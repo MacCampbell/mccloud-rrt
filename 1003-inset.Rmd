@@ -1,0 +1,165 @@
+---
+title: "1003-inset"
+author: "Mac Campbell"
+date: "August 24, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+
+library(tidyverse)
+library(ggmap)
+library(ggrepel)
+library(rgdal)
+```
+
+## 
+
+Put that on a nice map
+```{r}
+mapbox <- c(-122.3, 41.1, -121.75, 41.56)
+
+#mrrt <- get_map(location = mapbox, source = "stamen", maptype = "terrain-background", zoom = 10)
+#base<-ggmap(mrrt)
+
+mrrt2<-get_stamenmap(bbox=mapbox, maptype="terrain-background", zoom=10)
+base<-ggmap(mrrt2)
+```
+
+```{r}
+base +
+  xlab("Latitude") +
+  ylab("Longitude")
+#  coord_fixed(1.3, xlim=c(-122.35,-121.3), ylim=c(37.8, 38.5))
+```
+
+
+
+#We need a hydro layer and waterfalls
+```{r}
+waterfalls<-read_csv("~/Dropbox/Redband Trout/mac-mrrt-manuscript/McCloudFeatures.csv")
+
+points<-read_csv("~/Dropbox/Redband Trout/mac-mrrt-manuscript/trout-collections-for-plotting-pure.csv") %>%
+  dplyr::select(Latitude, Longitude, `Location Code`)
+
+colls<-points %>% unique() %>% filter(Latitude !="NA")
+
+
+base +
+  xlab("Latitude") +
+  ylab("Longitude") +
+  geom_point(data=colls, aes(x=Longitude, y=Latitude)) +
+  geom_text_repel(data=colls, aes(x=Longitude, y=Latitude, label=`Location Code`))+
+  geom_point(data=waterfalls, aes(x=Longitude, y=Latitude), pch=17)+
+  geom_text_repel(data=waterfalls, aes(x=Longitude, y=Latitude, label=Feature))
+
+```
+https://www.calfish.org/ProgramsData/ReferenceLayersHydrography/CaliforniaHydrography.aspx?
+
+```{r}
+load("/Users/mac/Dropbox/trout/chinook/Chinook Paper/streamsSub.rda")
+
+#riversNames<-as_tibble(read.csv(file="/Users/mac/Dropbox/trout/chinook/Chinook Paper/outputs/toPlot.txt",header=T))
+#riversNames$Names<-as.character(riversNames$Names)
+#rivers<- subset(streamsSub, streamsSub$NAME %in% c("McCloud River", "Pit River"))
+riversdf<-fortify(streamsSub)  
+
+load("/Users/mac/Dropbox/trout/chinook/Chinook Paper/polyStreamsSub.rda")
+lakesdf<-fortify(polyStreamsSub)
+```
+
+
+### Creating a hydro layer
+```{r}
+domain <- c(mapbox[1], mapbox[3], mapbox[2], mapbox[4])
+
+# here eric implements something and I copy it
+tidy_subset <- function(x, longlat) {
+  x@data$id <- rownames(x@data)
+  x.f <- broom::tidy(x) %>%
+    dplyr::left_join(., x@data, by = "id") %>%
+    dplyr::tbl_df() %>%
+    filter(long > longlat[1],
+           long < longlat[2],
+           lat > longlat[3],
+           lat < longlat[4])
+}
+```
+
+```{r, eval=FALSE}
+calHydro<-readOGR("outputs/1000/cdfg_100k_2003_6/")
+#spatial transform
+caltrans <- spTransform(calHydro, CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+tidyhydro<-tidy_subset(caltrans, domain)
+save(tidyhydro, file="outputs/1000/tidyhydro.rda")
+```
+
+```{r}
+load("outputs/1000/tidyhydro.rda")
+```
+
+```{r}
+base +
+  geom_path(data=tidyhydro, aes(x=long, y=lat, group=group), col="blue", alpha=0.75) +
+  geom_polygon(data=lakesdf, aes(x=long, y=lat, group=group), fill="#69A0C5FF", color="#69A0C5FF", alpha=1.0) +
+  #geom_path(data = riversdf, aes(x = long, y = lat, group=group), color="blue", alpha=0.75, size=1.1) +
+  geom_point(data=waterfalls, aes(x=Longitude, y=Latitude), pch=17) +
+  geom_text_repel(data=waterfalls, aes(x=Longitude, y=Latitude, label=Feature)) +
+  geom_point(data=colls, aes(x=Longitude, y=Latitude)) +
+  geom_text_repel(data=colls, aes(x=Longitude, y=Latitude, label=`Location Code`))+
+   xlab("Latitude") +
+  ylab("Longitude") +
+  coord_fixed(ratio=1.3, xlim=c(mapbox[1], mapbox[3]), ylim=c(mapbox[2],mapbox[4]))
+
+```
+
+##HUC
+"18020004"
+```{r}
+
+mc<-readOGR("/Users/mac/github/mccloud-rrt/outputs/1000/huc250k_shp/","huc250k")
+mc <- spTransform(mc, CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+mc <- mc[mc@data$HUC_CODE=="18020004",]
+
+mctidy<-tidy_subset(mc, domain)
+mcdf <- fortify(mc)
+```
+
+
+Mt. Shasta?
+
+```{r}
+shasta<-as_tibble(cbind(x=-122.194888, y=41.409196, label="Mt. Shasta"))
+shasta$x<-as.numeric(shasta$x)
+shasta$y<-as.numeric(shasta$y)
+```
+
+```{r}
+mcmc<-tidyhydro %>% filter(NAME %in% c("McCloud River", "McKay Creek", "Battle Creek", "Trout Creek", "Dry Creek",
+                                       "Ash Creek", "Edson Creek", "Pilgrim Creek", "Mud Creek","Cold Creek",
+                                       "Brewer Creek","Swamp Creek","Squaw Valley Creek"))
+
+mc2<-tidyhydro %>% filter(NAME %in% c("McCloud River"))
+
+tidysub<-tidyhydro %>% filter(DOWN_NAME %in% "McCloud River")
+base +
+  geom_polygon(data=mctidy, aes(x=long, y=lat, group=group), fill="NA", color="black", linetype=3) +
+  geom_path(data=mc2, aes(x=long, y=lat, group=group), col="blue", alpha=0.75, size=.75) +
+  geom_path(data=tidysub, aes(x=long, y=lat, group=group), col="blue", alpha=0.75) +
+  geom_path(data=mcmc, aes(x=long, y=lat, group=group), col="blue", alpha=0.75) +
+  geom_polygon(data=lakesdf, aes(x=long, y=lat, group=group), fill="#69A0C5FF", color="#69A0C5FF", alpha=1.0) +
+  #geom_path(data = riversdf, aes(x = long, y = lat, group=group), color="blue", alpha=0.75, size=1.1) +
+  geom_point(data=waterfalls, aes(x=Longitude, y=Latitude), pch=17) +
+  geom_text_repel(data=waterfalls, aes(x=Longitude, y=Latitude, label=Feature), fontface="bold") +
+  geom_point(data=colls, aes(x=Longitude, y=Latitude)) +
+  geom_text_repel(data=colls, aes(x=Longitude, y=Latitude, label=`Location Code`), fontface="bold")+
+  geom_text_repel(data=shasta, aes(x=x,y=y,label=label), fontface="bold") +
+  xlab("Latitude") +
+  ylab("Longitude") +
+  coord_fixed(ratio=1.3, xlim=c(mapbox[1], mapbox[3]), ylim=c(mapbox[2],mapbox[4])) +
+  theme(axis.title=element_text(size=15))
+
+ggsave("outputs/1000/draft-inset.pdf")
+```
+
