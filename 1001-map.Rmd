@@ -14,7 +14,7 @@ library(mapdata)
 library(maptools)
 library(rgdal)
 library(raster)
-
+library(ggsn)
 ```
 
 ## Get range maps from PISCES
@@ -145,8 +145,18 @@ crt<-fortify(crt)
 #warner
 load("outputs/1000/warner.RData")
 
+##Convex hull crt?
+ccrt<-crt[chull(x=crt$long,y=crt$lat),] %>% mutate(order=1:n()) %>% mutate(group=1)
+ggplot() + geom_polygon(data=ccrt, aes(x=long, y=lat, group=group))
+
+library("concaveman")
+cavecrt<-as_tibble(concaveman(as.matrix(cbind(ccrt$long, ccrt$lat)), concavity = 2)) %>%
+  rename(long=V1, lat=V2) %>% mutate(order=1:n(), group=1)
+ggplot() + geom_polygon(data=cavecrt, aes(x=long, y=lat, group=group))
+## Look to be roughly the same
+
 ggplot() + 
- # geom_polygon(data=crt, aes(x=long, y=lat, group=group), fill="skyblue", alpha=0.75) +
+  geom_polygon(data=ccrt, aes(x=long, y=lat, group=group), fill="skyblue", alpha=0.75) +
   geom_polygon(data=mccloud,aes(x=long, y=lat, group=group), fill="red", alpha=0.75) +
   geom_polygon(data=goose,aes(x=long, y=lat, group=group), fill="pink", alpha=0.75) +
   geom_polygon(data=warner,aes(x=long, y=lat, group=group), fill="darkred", alpha=0.75) +
@@ -374,11 +384,13 @@ ggplot() +
 
 ##Print it out
 ```{r}
-ggplot() +
+themap<-ggplot() +
   geom_raster(data = rast.table, mapping = aes(x = x, y = y), fill = rast.table$rgb, interpolate = TRUE) +
-#  geom_polygon(data=states, aes(x=long, y=lat, group=group), color="black", alpha=0, fill="white") +
+ geom_polygon(data=states, aes(x=long, y=lat, group=group), color="black", alpha=0, fill="white",
+              size=1.5) +
   geom_polygon(data=lakesdf, aes(x=long, y=lat, group=group), fill="#69A0C5FF", color="#69A0C5FF", alpha=0.75) +
   geom_path(data = riversdf, aes(x = long, y = lat, group=group), color="blue", size=1.5, alpha=0.75) +
+  #ccrt for convex hull, crt for HUC polys
   geom_polygon(data=crt, aes(x=long, y=lat, group=group), fill="grey50", alpha=0.5) +
   geom_polygon(data=mccloud,aes(x=long, y=lat, group=group), fill="red", alpha=0.75) +
   geom_polygon(data=goose,aes(x=long, y=lat, group=group), fill="pink", alpha=0.75) +
@@ -395,13 +407,20 @@ ggplot() +
                       y=c(40.971201, 41.172051,  40.757050,  39.761715),
                       label=c("Pit River", "McCloud River", "Shasta Lake", "Sacramento River"))) +
   geom_label_repel(data=text, aes(x=longs, y=lats, label=labels), size=4, alpha=0.75)+
-  coord_fixed(ratio=1.3, xlim = c(-124, -117.5), ylim=c(35.25, 41.9)) +
+  coord_fixed(ratio=1.3, xlim = c(-124.2, -118), ylim=c(35.25, 41.8)) +
   theme_bw() +
   theme(panel.grid=element_blank())+
   theme(axis.text = element_text(size=12)) +
   theme(axis.title = element_text(size=18)) +
   xlab("Longitude")+
   ylab("Latitude")
+
+themap +
+    scalebar(x.min = -118, x.max = -124.2,
+                   y.min = 35.25, y.max = 41.8,
+                   dist = 100, dist_unit = "km",
+                   st.bottom = FALSE, st.color = "black",
+             transform = TRUE, model = "WGS84")
 
 ggsave("outputs/1000/draft-map.pdf", width=8.5*0.75, height=11*0.75)
 
