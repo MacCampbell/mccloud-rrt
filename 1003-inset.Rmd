@@ -156,13 +156,13 @@ base +
   geom_point(data=colls, aes(x=Longitude, y=Latitude)) +
   geom_text_repel(data=colls, aes(x=Longitude, y=Latitude, label=`Location Code`), fontface="bold")+
   geom_text_repel(data=shasta, aes(x=x,y=y,label=label), fontface="bold") +
-  xlab("Latitude") +
-  ylab("Longitude") +
+  xlab("Longitude") +
+  ylab("Latitude") +
   coord_fixed(ratio=1.3, xlim=c(mapbox[1], mapbox[3]), ylim=c(mapbox[2],mapbox[4])) +
   theme(axis.title=element_text(size=15)) +
-   scalebar(x.min = mapbox[1], x.max = mapbox[3],
+   scalebar(x.min = mapbox[3], x.max = mapbox[1],
                    y.min = mapbox[2], y.max = mapbox[4],
-                   dist = 25, dist_unit = "km",
+                   dist = 5, dist_unit = "km",
                    st.bottom = FALSE, st.color = "black",
              transform = TRUE, model = "WGS84")
 
