@@ -34,7 +34,7 @@ meta<-read_csv("meta/bamlistall-nativetrout_metadata.csv")
 samples<-read_tsv("meta/bamlistf_allnatives", col_names=c("bam"))
 
 meta<-meta %>% filter(Bamlist %in% samples$bam) %>%
-  mutate(Path=paste0("bams/sourced",Bamlist))
+  mutate(Path=paste0("bams/sourced/",Bamlist))
 
 bamlist<-select(meta, Path)
 write_tsv(bamlist, "bamlists/288.bamlist", col_names = FALSE)
