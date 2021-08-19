@@ -1,0 +1,28 @@
+---
+title: "1101-REDB"
+author: "Mac Campbell"
+date: "August 19, 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+## Get REDB
+
+```{r}
+redb<-read_csv("meta/288.csv") %>% filter(OriginalGroup=="REDB")
+
+#204 samples
+
+write_tsv(select(redb, Path), "bamlists/redb.bamlist", col_names = FALSE)
+
+
+```
+
+```{sh, eval=FALSE}
+srun -p high -t 48:00:00 --mem=32G --nodes=2 $HOME/angsd/angsd -P 24  -bam bamlists/redb.bamlist -minInd 184 -GL 1 -ref genome/omyV6Chr.fasta \
+-doGLF 2 -doMajorMinor 1 -doMaf 2 -SNP_pval 1e-6 -minMapQ 20 -minQ 20 -rf homoblocks/non-tetrasomic-non-inversion.txt \
+-out outputs/1101/redb > outputs/1101/beagle.out 2> outputs/1101/beagle.err &
+```
