@@ -1,5 +1,7 @@
 #!/bin/bash
 #Replace barcode with a name.
+#Usage
+#bash ~/mccloud-rrt/1102.1-rename.sh ~/mccloud-rrt/meta/RADmeta.csv 
 
 
 file=$1

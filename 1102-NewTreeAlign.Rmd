@@ -11,8 +11,61 @@ knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 
 ## Campbell et al. (2021) samples
 
-Can my other samples be integrated here?
+Can my other samples be integrated here? Renaming, see 1102.1-rename.sh,
 
-Aligning to /home/maccamp/mccloud-rrt/genome/omyV6Chr.fasta    
+Aligning to /home/maccamp/mccloud-rrt/genome/omyV6Chr.fasta using run_align.sh from Ensieh.    
 
-Using run_align.sh from Ensieh.    
+
+## Remove low-ballers at some thresh.
+(base) maccamp@farm:~/data/trout-rad/BigCk$
+
+ls | grep sort.flt.bam| grep -v mapped > bams
+bash samtools_flagstat.sh bams 
+cat *mapped_bams | grep "mapped (" | awk -F" " '{print $1}' > counts
+ paste bams counts  > stats.txt
+
+Scott-M021553_M209_6F_RA.sort.flt.bam	2149592 #Adult Anadromous
+Scott-M021554_M209_6G_RA.sort.flt.bam	626813 #Adult Anadromous
+Scott-M021604_M210_1A_RA.sort.flt.bam	35765 #Juvenile/resident
+Scott-M021605_M210_1B_RA.sort.flt.bam	251125
+Scott-M021606_M210_1C_RA.sort.flt.bam	1891084
+Scott-M021607_M210_1D_RA.sort.flt.bam	741100
+Scott-M021616_M210_2E_RA.sort.flt.bam	646582
+Scott-M021617_M210_2F_RA.sort.flt.bam	914955
+Scott-M021618_M210_2G_RA.sort.flt.bam	206444
+Scott-M021619_M210_2H_RA.sort.flt.bam	419690
+Scott-M021624_M210_3E_RA.sort.flt.bam	527048
+Scott-M021625_M210_3F_RA.sort.flt.bam	295583
+Scott-M021626_M210_3G_RA.sort.flt.bam	735745
+Scott-M021627_M210_3H_RA.sort.flt.bam	1049920
+Scott-M021628_M210_4A_RA.sort.flt.bam	874565
+Scott-M021629_M210_4B_RA.sort.flt.bam	630891
+Scott-M021630_M210_4C_RA.sort.flt.bam	914311
+Scott-M021631_M210_4D_RA.sort.flt.bam	978366
+Scott-M021636_M210_5A_RA.sort.flt.bam	515182
+Scott-M021637_M210_5B_RA.sort.flt.bam	418973
+Scott-M021638_M210_5C_RA.sort.flt.bam	791119
+Scott-M021639_M210_5D_RA.sort.flt.bam	934781
+Scott-M021644_M210_6A_RA.sort.flt.bam	784776
+Scott-M021645_M210_6B_RA.sort.flt.bam	607840
+Scott-M021646_M210_6C_RA.sort.flt.bam	735162
+Scott-M021647_M210_6D_RA.sort.flt.bam	283009
+
+Let's try 200K reads, gives us 313 total fish. We may be able to drop sampling to a few individuals (5?) from each location so that we match the general sampling from Habibi et al., so top five from this for a trial + the top steelhead.
+Scott-M021606_M210_1C_RA.sort.flt.bam	1891084
+Scott-M021627_M210_3H_RA.sort.flt.bam	1049920
+Scott-M021631_M210_4D_RA.sort.flt.bam	978366
+Scott-M021639_M210_5D_RA.sort.flt.bam	934781
+Scott-M021617_M210_2F_RA.sort.flt.bam	914955
+Scott-M021553_M209_6F_RA.sort.flt.bam	2149592 #Adult Anadromous
+
+
+Provide some divergent outgroups?  288.csv why not but for one chrom
+
+```{sh, eval=FALSE}
+srun -p high -t 48:00:00 --mem=32G --nodes=2 $HOME/angsd/angsd -P 24  -bam bamlists/294.bamlist -minInd 259 -GL 1 -ref genome/omyV6Chr.fasta \
+-doGLF 2 -doMajorMinor 1 -doMaf 2 -SNP_pval 1e-6 -minMapQ 20 -minQ 20 -r omy01: \
+-out outputs/1102/294 > outputs/1102/beagle.out 2> outputs/1102/beagle.err &
+
+python $HOME/pcangsd/pcangsd.py -beagle outputs/1102/294.beagle.gz -admix -o outputs/1102/ -threads 10
+```
