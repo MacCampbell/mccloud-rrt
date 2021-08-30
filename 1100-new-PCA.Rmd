@@ -11,6 +11,9 @@ knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 
 ```{r}
 library(tidyverse)
+library(RcppCNPy)
+library(ggpubr)
+library(viridis)
 ```
 
 ## Bring in new samples
@@ -30,7 +33,7 @@ Ensieh removed 19 individuals due to low read counts...
 Let's show a PCA of the fish, color coded by PCAngsd admixture??
 
 ```{r}
-meta<-read_csv("meta/bamlistall-nativetrout_metadata.csv")
+meta<-read_csv("meta/bamlistall-nativetrout_metadata-edited.csv")
 samples<-read_tsv("meta/bamlistf_allnatives", col_names=c("bam"))
 
 meta<-meta %>% filter(Bamlist %in% samples$bam) %>%
@@ -38,13 +41,320 @@ meta<-meta %>% filter(Bamlist %in% samples$bam) %>%
 
 bamlist<-select(meta, Path)
 write_tsv(bamlist, "bamlists/288.bamlist", col_names = FALSE)
+
+write_csv(meta, "meta/288.csv")
 ```
 
 meta %>% filter(!(Bamlist %in% samples$bam)) Gives me 19 samples, but 288 total
-
+-rf homoblocks/non-tetrasomic-non-inversion.txt
 Calc beagle:
 ```{sh, eval=FALSE}
-srun -p high -t 48:00:00 --mem=32G --nodes=2 $HOME/angsd/angsd -P 24  -bam bamlists/288.bamlist -GL 1 \
--doGLF 2 -doMajorMinor 1 -doMaf 2 -SNP_pval 1e6 -minMapQ 20 -minQ 20 -rf homoblocks/non-tetrasomic-non-inversion.txt \
+srun -p high -t 48:00:00 --mem=32G --nodes=2 $HOME/angsd/angsd -P 24  -bam bamlists/288.bamlist -minInd 259 -GL 1 -ref genome/omyV6Chr.fasta \
+-doGLF 2 -doMajorMinor 1 -doMaf 2 -SNP_pval 1e-6 -minMapQ 20 -minQ 20 -rf homoblocks/non-tetrasomic-non-inversion.txt \
 -out outputs/1100/288 > outputs/1100/beagle.out 2> outputs/1100/beagle.err &
+```
+
+Made an omy05 beagle file.
+```{sh, eval=FALSE}
+python $HOME/pcangsd/pcangsd.py -beagle outputs/1100/omy05.beagle.gz -admix -admix_K 2 -o outputs/1100/pca-omy05 -threads 5
+```
+
+Generate best K and k=2, k=3, selection?
+
+```{sh, eval=FALSE}
+python $HOME/pcangsd/pcangsd.py -beagle outputs/1100/288.beagle.gz -kinship -admix -admix_K 3 -o outputs/1100/kinship -threads 10
+python $HOME/pcangsd/pcangsd.py -beagle outputs/1100/288.beagle.gz -kinship -admix -admix_K 2 -o outputs/1100/admix2 -threads 10
+python $HOME/pcangsd/pcangsd.py -beagle outputs/1100/288.beagle.gz -kinship -admix -admix_K 4 -o outputs/1100/admix4 -threads 10
+python $HOME/pcangsd/pcangsd.py -beagle outputs/1100/288.beagle.gz -kinship -admix -admix_K 5 -o outputs/1100/admix5 -threads 10
+
+#Number of sites after MAF filtering (0.05): 72242
+
+#python $HOME/pcangsd/pcangsd.py -beagle outputs/1100/288.beagle.gz -inbreedSites -inbreed 3 -relate outputs/1100/kinship.kinship.npy -o outputs/1100/inbreed -threads 10
+#python $HOME/pcangsd/pcangsd.py -beagle outputs/1100/288.beagle.gz -hwe outputs/1100/inbreed.lrt.sites.npy \
+#-admix -admix_K 3  -selection 1 -sites_save -snp_weights -o outputs/1100/selection -threads 10
+
+
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# Some shameless copying from Eric A.
+#' @param samples character vector with the individuals IDs in the order in which
+#' they were passed in the bamlist to angsd.
+#' @param cov covariance matrix
+covar2pcs <- function(samples, cov) {
+  
+  
+  eig <- eigen(cov, symm = TRUE)
+  PC <- as.data.frame(eig$vectors) %>%
+    as_tibble() %>%
+    setNames(sprintf("PC-%02d", 1:ncol(.)))
+  
+  samtib <- tibble(sample = samples)
+  
+  list(
+    PCs = bind_cols(samtib, PC),
+    eigevalues = eig$values
+  )
+}
+```
+
+```{r, warning=FALSE, message=FALSE}
+
+#cov<-read_delim("outputs/1100/pca-omy05.cov", col_names=FALSE, delim=" ") %>% as.matrix()
+cov<-read_delim("outputs/1100/kinship.cov", col_names=FALSE, delim=" ") %>% as.matrix()
+
+```
+
+```{r}
+pca <- covar2pcs(meta$Bamlist, cov)
+
+pca_long <- pca$PCs %>%
+  tidyr::gather(., key = "PC", "val", -sample)
+
+# then expand a grid of the possible comparisons (ordered)
+expg <- expand.grid(sample = pca$PCs$sample,
+                    PCx = sprintf("PC-%02d", 1:6),
+                    PCy = sprintf("PC-%02d", 1:6),
+                    stringsAsFactors = FALSE) %>%
+  tibble::as_tibble()
+
+# then left join the pca results onto that
+pca_pairs <- dplyr::left_join(expg, pca_long, by = c("sample", "PCx" = "PC")) %>%
+  dplyr::rename(val_x = val) %>%
+  dplyr::left_join(pca_long, by = c("sample", "PCy" = "PC")) %>%
+  dplyr::rename(val_y = val)
+
+pp_meta <- pca_pairs %>%   # just keep the first 6 PCs around
+  left_join(., meta, by = c("sample" = "Bamlist"))
+
+# now, that has the first 6 PCs in it.  If we want to focus on the just the
+# first 3, we could do 
+npc <- 3
+pp_meta2 <- pp_meta %>%
+  filter( (PCx %in% sprintf("PC-%02d", 1:npc)) & 
+            (PCy %in% sprintf("PC-%02d", 1:npc)) )
+
+ggplot(pp_meta2, aes(x = val_x, y = val_y, fill = Group)) +
+  geom_point(pch = 21, size = 2) +
+  scale_fill_discrete(na.value = "white") + 
+  facet_grid(PCy ~ PCx, scales = "free")
+
+
+```
+```{r}
+
+eig <- eigen(cov, symm = TRUE)
+var<-eig$values/sum(eig$values)
+cumvar<-cumsum(eig$values)/sum(eig$values)
+
+head(var)
+head(cumvar)
+```
+
+
+```{r}
+sub12<-pp_meta2 %>% filter( (PCx =="PC-01") & (PCy =="PC-02") )
+
+pc12<-ggplot(sub12, aes(x = val_x, y = val_y, fill = Group, shape=MajorGroup)) +
+  geom_point(size = 2, alpha=0.75) +
+  scale_fill_discrete(na.value = "white") + 
+  theme_bw()+
+  theme(panel.grid=element_blank())+
+  xlab(paste("PC1", " ", round((100*var[1]),2), "%", sep = ""))+
+  ylab(paste("PC2", " ", round((100*var[2]),2), "%", sep = ""))+
+  scale_fill_viridis_d(option = "magma") +
+  scale_shape_manual(values = c(21,22,22,23,24,25)) +
+  theme(legend.position = "")+
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+sub13<-pp_meta2 %>% filter( (PCx =="PC-01") & (PCy =="PC-03") )
+
+pc13<-ggplot(sub13, aes(x = val_x, y = val_y, fill = Group, shape=MajorGroup)) +
+  geom_point(size = 2, alpha=0.75) +
+  scale_fill_discrete(na.value = "white") + 
+  theme_bw()+
+  theme(panel.grid=element_blank())+
+  xlab(paste("PC1", " ", round((100*var[1]),2), "%", sep = ""))+
+  ylab(paste("PC3", " ", round((100*var[3]),2), "%", sep = ""))+
+ # theme(legend.position = "")+
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_fill_viridis_d(option = "magma") +
+  scale_shape_manual(values = c(21,22,22,23,24,25)) +
+  guides(fill = guide_legend(override.aes=list(shape=15, color= viridis(8, option="magma")))) 
+
+pcs<-ggarrange(pc12, pc13, ncol = 2, widths=c(1.1, 1.4))
+pcs
+
+ggsave("outputs/1100/new-pcs.jpeg", width=10, height=6)
+```
+
+
+```{r}
+k<-npyLoad("outputs/1100/kinship.admix.Q.npy") %>% as_tibble() 
+#Need to rename all colnames smartly!
+
+colnames(k)<-gsub("V","Q",colnames(k))
+k$Bamlist<-meta$Bamlist
+k<-left_join(k, meta)
+k <-k %>% arrange(MajorGroup, Group, Subgroup) %>% #arrange(Q1, Q2, Q3, by_group=TRUE) %>%  ungroup() %>% mutate(Index=1:n())
+  mutate(Index=1:n())
+
+```
+
+
+```{r}
+q<-k %>% dplyr::select(Index, Bamlist, Q1, Q2, Q3) %>% gather(key=Ancestry, value=Q, 3:5)
+qs<-left_join(q,meta)
+pops2<-qs  %>% group_by(MajorGroup, Group) %>% mutate(Start=min(Index), Stop=max(Index)) %>% 
+  select(Location,Start,Stop) %>% unique() %>% 
+  mutate(Position=round((Start+Stop)/2)) %>% ungroup() %>% select(-Location) %>% unique()
+```
+
+
+```{r}
+kplot<-ggplot(qs) +
+  geom_col(aes(x=Index, y=Q, fill=Ancestry), color="NA", size = 0, width = 1)+
+  geom_segment(data=pops2, x = pops2$Start - 0.5, y=0, xend = pops2$Start-0.5, yend=1, alpha=0.9, size=0.25) +
+  geom_segment(data=pops2, x = pops2$Stop[length(pops2$Stop)]  + 0.5, y=0, xend= pops2$Stop[length(pops2$Stop)] + 0.5, yend=1,  alpha=0.9,
+               size=0.25) +
+  geom_segment(x=0, xend= pops2$Stop[length(pops2$Stop)], y=1, yend=1, alpha=0.9, size=0.25) +
+  theme(axis.text.x = element_text(angle=45, hjust=1)) +
+  ylim(0,1.01) +
+  xlim(-0.1, pops2$Stop[length(pops2$Stop)]+1) +
+  theme(panel.background = element_blank())+
+  scale_x_continuous(breaks=pops2$Position, labels=pops2$Group) +
+  xlab("") 
+ # scale_fill_viridis_d(option="magma")
+  #theme(axis.text.x = element_blank(), axis.ticks.x=element_blank()) 
+#  theme(legend.position = "NA") +
+
+kplot
+ggsave("outputs/1100/kplot3.jpeg", width=16, height=8)
+```
+
+I wrote a loop to plot multiples for pike, And 
+```{r}
+k<-npyLoad("outputs/1100/admix2.admix.Q.npy") %>% as_tibble() 
+#Need to rename all colnames smartly!
+
+colnames(k)<-gsub("V","Q",colnames(k))
+k$Bamlist<-meta$Bamlist
+k<-left_join(k, meta)
+k <-k %>% arrange(MajorGroup, Group, Subgroup) %>% #arrange(Q1, Q2, Q3, by_group=TRUE) %>%  ungroup() %>% mutate(Index=1:n())
+  mutate(Index=1:n())
+
+```
+
+
+```{r}
+q<-k %>% dplyr::select(Index, Bamlist, Q1, Q2) %>% gather(key=Ancestry, value=Q, 3:4)
+qs<-left_join(q,meta)
+pops2<-qs  %>% group_by(MajorGroup, Group) %>% mutate(Start=min(Index), Stop=max(Index)) %>% 
+  select(Location,Start,Stop) %>% unique() %>% 
+  mutate(Position=round((Start+Stop)/2)) %>% ungroup() %>% select(-Location) %>% unique()
+```
+
+
+```{r}
+kplot2<-ggplot(qs) +
+  geom_col(aes(x=Index, y=Q, fill=Ancestry), color="NA", size = 0, width = 1)+
+  geom_segment(data=pops2, x = pops2$Start - 0.5, y=0, xend = pops2$Start-0.5, yend=1, alpha=0.9, size=0.25) +
+  geom_segment(data=pops2, x = pops2$Stop[length(pops2$Stop)]  + 0.5, y=0, xend= pops2$Stop[length(pops2$Stop)] + 0.5, yend=1,  alpha=0.9,
+               size=0.25) +
+  geom_segment(x=0, xend= pops2$Stop[length(pops2$Stop)], y=1, yend=1, alpha=0.9, size=0.25) +
+  theme(axis.text.x = element_text(angle=45, hjust=1)) +
+  ylim(0,1.01) +
+  xlim(-0.1, pops2$Stop[length(pops2$Stop)]+1) +
+  theme(panel.background = element_blank())+
+  scale_x_continuous(breaks=pops2$Position, labels=pops2$Group) +
+  xlab("") 
+ # scale_fill_viridis_d(option="magma")
+  #theme(axis.text.x = element_blank(), axis.ticks.x=element_blank()) 
+#  theme(legend.position = "NA") +
+
+kplot2
+ggsave("outputs/1100/kplot2.jpeg", width=16, height=8)
+```
+
+```{r}
+k<-npyLoad("outputs/1100/admix4.admix.Q.npy") %>% as_tibble() 
+#Need to rename all colnames smartly!
+
+colnames(k)<-gsub("V","Q",colnames(k))
+k$Bamlist<-meta$Bamlist
+k<-left_join(k, meta)
+k <-k %>% arrange(MajorGroup, Group, Subgroup) %>% #arrange(Q1, Q2, Q3, by_group=TRUE) %>%  ungroup() %>% mutate(Index=1:n())
+  mutate(Index=1:n())
+
+```
+
+
+```{r}
+q<-k %>% dplyr::select(Index, Bamlist, Q1, Q2, Q3, Q4) %>% gather(key=Ancestry, value=Q, 3:6)
+qs<-left_join(q,meta)
+pops2<-qs  %>% group_by(MajorGroup, Group) %>% mutate(Start=min(Index), Stop=max(Index)) %>% 
+  select(Location,Start,Stop) %>% unique() %>% 
+  mutate(Position=round((Start+Stop)/2)) %>% ungroup() %>% select(-Location) %>% unique()
+```
+
+
+```{r}
+kplot4<-ggplot(qs) +
+  geom_col(aes(x=Index, y=Q, fill=Ancestry), color="NA", size = 0, width = 1)+
+  geom_segment(data=pops2, x = pops2$Start - 0.5, y=0, xend = pops2$Start-0.5, yend=1, alpha=0.9, size=0.25) +
+  geom_segment(data=pops2, x = pops2$Stop[length(pops2$Stop)]  + 0.5, y=0, xend= pops2$Stop[length(pops2$Stop)] + 0.5, yend=1,  alpha=0.9,
+               size=0.25) +
+  geom_segment(x=0, xend= pops2$Stop[length(pops2$Stop)], y=1, yend=1, alpha=0.9, size=0.25) +
+  theme(axis.text.x = element_text(angle=45, hjust=1)) +
+  ylim(0,1.01) +
+  xlim(-0.1, pops2$Stop[length(pops2$Stop)]+1) +
+  theme(panel.background = element_blank())+
+  scale_x_continuous(breaks=pops2$Position, labels=pops2$Group) +
+  xlab("") 
+ # scale_fill_viridis_d(option="magma")
+  #theme(axis.text.x = element_blank(), axis.ticks.x=element_blank()) 
+#  theme(legend.position = "NA") +
+
+kplot4
+ggsave("outputs/1100/kplot4.jpeg", width=16, height=8)
+```
+
+K5
+
+```{r}
+k<-npyLoad("outputs/1100/admix5.admix.Q.npy") %>% as_tibble() 
+#Need to rename all colnames smartly!
+
+colnames(k)<-gsub("V","Q",colnames(k))
+k$Bamlist<-meta$Bamlist
+k<-left_join(k, meta)
+k <-k %>% arrange(MajorGroup, Group, Subgroup) %>% #arrange(Q1, Q2, Q3, by_group=TRUE) %>%  ungroup() %>% mutate(Index=1:n())
+  mutate(Index=1:n())
+
+
+
+q<-k %>% dplyr::select(Index, Bamlist, Q1, Q2, Q3, Q4, Q5) %>% gather(key=Ancestry, value=Q, 3:7)
+qs<-left_join(q,meta)
+pops2<-qs  %>% group_by(MajorGroup, Group) %>% mutate(Start=min(Index), Stop=max(Index)) %>% 
+  select(Location,Start,Stop) %>% unique() %>% 
+  mutate(Position=round((Start+Stop)/2)) %>% ungroup() %>% select(-Location) %>% unique()
+
+kplot5<-ggplot(qs) +
+  geom_col(aes(x=Index, y=Q, fill=Ancestry), color="NA", size = 0, width = 1)+
+  geom_segment(data=pops2, x = pops2$Start - 0.5, y=0, xend = pops2$Start-0.5, yend=1, alpha=0.9, size=0.25) +
+  geom_segment(data=pops2, x = pops2$Stop[length(pops2$Stop)]  + 0.5, y=0, xend= pops2$Stop[length(pops2$Stop)] + 0.5, yend=1,  alpha=0.9,
+               size=0.25) +
+  geom_segment(x=0, xend= pops2$Stop[length(pops2$Stop)], y=1, yend=1, alpha=0.9, size=0.25) +
+  theme(axis.text.x = element_text(angle=45, hjust=1)) +
+  ylim(0,1.01) +
+  xlim(-0.1, pops2$Stop[length(pops2$Stop)]+1) +
+  theme(panel.background = element_blank())+
+  scale_x_continuous(breaks=pops2$Position, labels=pops2$Group) +
+  xlab("") 
+ # scale_fill_viridis_d(option="magma")
+  #theme(axis.text.x = element_blank(), axis.ticks.x=element_blank()) 
+#  theme(legend.position = "NA") +
+
+kplot5
+ggsave("outputs/1100/kplot5.jpeg", width=16, height=8)
 ```

@@ -15,14 +15,131 @@ knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 redb<-read_csv("meta/288.csv") %>% filter(OriginalGroup=="REDB")
 
 #204 samples
-
 write_tsv(select(redb, Path), "bamlists/redb.bamlist", col_names = FALSE)
-
-
 ```
 
 ```{sh, eval=FALSE}
 srun -p high -t 48:00:00 --mem=32G --nodes=2 $HOME/angsd/angsd -P 24  -bam bamlists/redb.bamlist -minInd 184 -GL 1 -ref genome/omyV6Chr.fasta \
 -doGLF 2 -doMajorMinor 1 -doMaf 2 -SNP_pval 1e-6 -minMapQ 20 -minQ 20 -rf homoblocks/non-tetrasomic-non-inversion.txt \
 -out outputs/1101/redb > outputs/1101/beagle.out 2> outputs/1101/beagle.err &
+
+python $HOME/pcangsd/pcangsd.py -beagle outputs/1101/redb.beagle.gz -admix -o outputs/1101/redbadmix -threads 10
+
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# Some shameless copying from Eric A.
+#' @param samples character vector with the individuals IDs in the order in which
+#' they were passed in the bamlist to angsd.
+#' @param cov covariance matrix
+covar2pcs <- function(samples, cov) {
+  
+  
+  eig <- eigen(cov, symm = TRUE)
+  PC <- as.data.frame(eig$vectors) %>%
+    as_tibble() %>%
+    setNames(sprintf("PC-%02d", 1:ncol(.)))
+  
+  samtib <- tibble(sample = samples)
+  
+  list(
+    PCs = bind_cols(samtib, PC),
+    eigevalues = eig$values
+  )
+}
+```
+
+```{r, warning=FALSE, message=FALSE}
+
+cov<-read_delim("outputs/1101/redbadmix.cov", col_names=FALSE, delim=" ") %>% as.matrix()
+
+```
+
+```{r}
+pca <- covar2pcs(redb$Bamlist, cov)
+
+pca_long <- pca$PCs %>%
+  tidyr::gather(., key = "PC", "val", -sample)
+
+# then expand a grid of the possible comparisons (ordered)
+expg <- expand.grid(sample = pca$PCs$sample,
+                    PCx = sprintf("PC-%02d", 1:6),
+                    PCy = sprintf("PC-%02d", 1:6),
+                    stringsAsFactors = FALSE) %>%
+  tibble::as_tibble()
+
+# then left join the pca results onto that
+pca_pairs <- dplyr::left_join(expg, pca_long, by = c("sample", "PCx" = "PC")) %>%
+  dplyr::rename(val_x = val) %>%
+  dplyr::left_join(pca_long, by = c("sample", "PCy" = "PC")) %>%
+  dplyr::rename(val_y = val)
+
+pp_meta <- pca_pairs %>%   # just keep the first 6 PCs around
+  left_join(., redb, by = c("sample" = "Bamlist"))
+
+# now, that has the first 6 PCs in it.  If we want to focus on the just the
+# first 3, we could do 
+npc <- 3
+pp_meta2 <- pp_meta %>%
+  filter( (PCx %in% sprintf("PC-%02d", 1:npc)) & 
+            (PCy %in% sprintf("PC-%02d", 1:npc)) )
+
+ggplot(pp_meta2) +
+  geom_point(aes(x=val_x, y=val_y, fill=Watershed, shape=MajorGroup), alpha=0.75) +
+  theme_bw() +
+  scale_shape_manual(values = c(21,24)) +
+  facet_grid(PCx ~ PCy) +
+  guides(fill = guide_legend(override.aes=list(shape=22)))
+
+```
+
+
+```{r}
+
+eig <- eigen(cov, symm = TRUE)
+var<-eig$values/sum(eig$values)
+cumvar<-cumsum(eig$values)/sum(eig$values)
+
+head(var)
+head(cumvar)
+```
+
+
+```{r}
+sub12<-pp_meta2 %>% filter( (PCx =="PC-01") & (PCy =="PC-02") )
+
+pc12<-ggplot(sub12) +
+  geom_point(aes(x = val_x, y = val_y, fill = Watershed, shape=MajorGroup), size = 2, alpha=0.75) +
+  scale_fill_discrete(na.value = "white") + 
+  theme_bw()+
+  theme(panel.grid=element_blank())+
+  xlab(paste("PC1", " ", round((100*var[1]),2), "%", sep = ""))+
+  ylab(paste("PC2", " ", round((100*var[2]),2), "%", sep = ""))+
+#  scale_fill_viridis_d(option = "magma") +
+  scale_shape_manual(values = c(21,22,22,23,24,25)) +
+  #theme(legend.position = "")+
+  theme(plot.title = element_text(hjust = 0.5)) +
+  guides(fill = guide_legend(override.aes=list(shape=22)))
+
+
+sub13<-pp_meta2 %>% filter( (PCx =="PC-01") & (PCy =="PC-03") )
+
+pc13<-ggplot(sub13, aes(x = val_x, y = val_y, fill = Watershed, shape=MajorGroup)) +
+  geom_point(size = 2, alpha=0.75) +
+  scale_fill_discrete(na.value = "white") + 
+  theme_bw()+
+  theme(panel.grid=element_blank())+
+  xlab(paste("PC1", " ", round((100*var[1]),2), "%", sep = ""))+
+  ylab(paste("PC3", " ", round((100*var[3]),2), "%", sep = ""))+
+ # theme(legend.position = "")+
+  theme(plot.title = element_text(hjust = 0.5)) +
+#  scale_fill_viridis_d(option = "magma") +
+  scale_shape_manual(values = c(21,22,22,23,24,25)) +
+  guides(fill = guide_legend(override.aes=list(shape=15))) 
+
+#pcs<-ggarrange(pc12, pc13, ncol = 2, widths=c(1.1, 1.4))
+#pcs
+pc12
+ggsave("outputs/1101/redb-pcs.jpeg", width=8, height=6)
+
 ```

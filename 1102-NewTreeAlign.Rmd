@@ -1,0 +1,18 @@
+---
+title: "1102-MoreSamples"
+author: "Mac Campbell"
+date: "August 19, 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+## Campbell et al. (2021) samples
+
+Can my other samples be integrated here?
+
+Aligning to /home/maccamp/mccloud-rrt/genome/omyV6Chr.fasta    
+
+Using run_align.sh from Ensieh.    
