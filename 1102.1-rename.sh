@@ -12,7 +12,7 @@ do
         string="sed -n ${x}p $file" #The file here represents whatever metadate file contains column
         str=$($string)
 
-        var=$(echo $str | awk -F"\t" '{print $1,$2,$3,$4}')   
+        var=$(echo $str | awk -F"," '{print $1,$2,$3,$4,$5,$6,$7}')   
         set -- $var
         c1=$1 #is RA or RB for me
         c2=$2 #barcode 1
