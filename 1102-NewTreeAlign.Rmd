@@ -209,25 +209,68 @@ PRJNA690579
 Elwha paired end. Pulled five samples.
 
 ```{sh, eval=FALSE}
-srun -p high -t 48:00:00 --mem=32G --nodes=2 $HOME/angsd/angsd -P 24  -bam bamlists/299.bamlist -minInd 269 -GL 1 -ref genome/omyV6Chr.fasta \
+srun -p high -t 48:00:00 --mem=32G --nodes=2 $HOME/angsd/angsd -P 24  -bam bamlists/318.bamlist -minInd 286 -GL 1 -ref genome/omyV6Chr.fasta \
 -doGLF 2 -doMajorMinor 1 -doMaf 2 -SNP_pval 1e-6 -minMapQ 20 -minQ 20 -r omy01: \
--out outputs/1102/299 > outputs/1102/beagle.out 2> outputs/1102/beagle.err &
+-out outputs/1102/318 > outputs/1102/beagle.out 2> outputs/1102/beagle.err &
 
-python $HOME/pcangsd/pcangsd.py -beagle outputs/1102/299.beagle.gz -admix -o outputs/1102/299 -threads 10
-python $HOME/pcangsd/pcangsd.py -beagle outputs/1102/299.beagle.gz -kinship -admix -admix_K 4 -o outputs/1102/admix4 -threads 10
-python $HOME/pcangsd/pcangsd.py -beagle outputs/1102/299.beagle.gz -kinship -admix -admix_K 5 -o outputs/1102/admix5 -threads 10
- 
-python $HOME/pcangsd/pcangsd.py -beagle outputs/1102/299.beagle.gz -kinship -admix -admix_K 6 -o outputs/1102/admix6 -threads 10
+python $HOME/pcangsd/pcangsd.py -beagle outputs/1102/318.beagle.gz -admix -o outputs/1102/318 -threads 10
+python $HOME/pcangsd/pcangsd.py -beagle outputs/1102/318.beagle.gz -kinship -admix -admix_K 4 -o outputs/1102/admix4 -threads 10
+python $HOME/pcangsd/pcangsd.py -beagle outputs/1102/318.beagle.gz -kinship -admix -admix_K 5 -o outputs/1102/admix5 -threads 10
+python $HOME/pcangsd/pcangsd.py -beagle outputs/1102/318.beagle.gz -kinship -admix -admix_K 6 -o outputs/1102/admix6 -threads 10
 
 ```
 
 Ok, I will include even more samples!!
 Renaming, see 1102.1-rename.sh,
 (base) maccamp@farm:~/data/trout-rad$ tr '\r' '\n' < RADmeta.csv > radmeta-unixbreaks.csv
+In (base) maccamp@farm:~/data/trout-rad/Matilija$
+bash ~/mccloud-rrt/1102.1-rename-bams.sh ../radmeta-unixbreaks.csv 
+for f in *.sort.flt.bam; do samtools flagstat $f | grep "mapped (" | cut -f 1 -d ' ' >> stats; done;
+ls | grep sort.flt.bam > bams
+paste bams stats > counts.txt
+cat counts.txt  | sort -k 2 -n | tail -n 5 | sort -k 1
 
-```{sh, eval=FALSE}
+Ventura-M017341_M165_8B_RA.sort.flt.bam	2209227
+Ventura-M017354_M165_9G_RA.sort.flt.bam	1981529
+Ventura-M017355_M165_9H_RA.sort.flt.bam	2243558
+Ventura-M017356_M165_10A_RA.sort.flt.bam	2946142
+Ventura-M017357_M165_10B_RA.sort.flt.bam	2364187
 
-```
+Scott-M021518_M209_2C_RA.sort.flt.bam	2674708
+Scott-M021524_M209_3A_RA.sort.flt.bam	2652411
+Scott-M021525_M209_3B_RA.sort.flt.bam	4472690
+Scott-M021533_M209_4B_RA.sort.flt.bam	3413973
+Scott-M021548_M209_6A_RA.sort.flt.bam	3734828
+
+San-M067184_M686_3D_RA.sort.flt.bam	2145256
+San-M067187_M686_3G_RA.sort.flt.bam	1912563
+San-M067188_M686_3H_RA.sort.flt.bam	1804566
+San-M067191_M686_4C_RA.sort.flt.bam	1867951
+San-M067192_M686_4D_RA.sort.flt.bam	1637693
+
+San-M057389_M583_3B_RA.sort.flt.bam	1571678
+San-M057391_M583_3D_RA.sort.flt.bam	1454349
+San-M057392_M583_3E_RA.sort.flt.bam	1439609
+San-M057397_M583_4B_RA.sort.flt.bam	1000480
+San-M057398_M583_4C_RA.sort.flt.bam	1564479
+
+Populating spreadsheet:
+cat counts.txt  | sort -k 2 -n | tail -n 5 | sort -k 1 | cut -f 1 
+
+cat counts.txt  | sort -k 2 -n | tail -n 5 | sort -k 1 | cut -f 1 | perl -pe 's/_RA.sort.flt.bam//g' | cut -f 2 -d "-"
+
+cat counts.txt  | sort -k 2 -n | tail -n 5 | sort -k 1 | cut -f 2
+
+Creating path:
+cat counts.txt  | sort -k 2 -n | tail -n 5 | sort -k 1 | cut -f 1 | while read line; do echo "/home/maccamp/data/trout-rad/Matilija/$line"; done;
+cat counts.txt  | sort -k 2 -n | tail -n 5 | sort -k 1 | cut -f 1 | while read line; do echo "/home/maccamp/data/trout-rad/ScottWeir/$line"; done;
+cat counts.txt  | sort -k 2 -n | tail -n 5 | sort -k 1 | cut -f 1 | while read line; do echo "/home/maccamp/data/trout-rad/WFSanGabriel/$line"; done;
+cat counts.txt  | sort -k 2 -n | tail -n 5 | sort -k 1 | cut -f 1 | while read line; do echo "/home/maccamp/data/trout-rad/WFSanLuis/$line"; done;
+
+Don't forget to index!!!
+for f in *.sort.flt.bam; do samtools index $f; done;
+
+Now we have 318 samples. 286 samples @ .9     
 
 ## Plotting
 
