@@ -76,9 +76,11 @@ srun -p high -t 48:00:00 --mem=32G --nodes=2 $HOME/angsd/angsd -P 24  -bam bamli
 python $HOME/pcangsd/pcangsd.py -beagle outputs/1102/294.beagle.gz -admix -o outputs/1102/294 -threads 10
 ```
 
+Moving in more samples here:    
 ```{r}
 #meta<-read_csv("meta/294.csv")
-meta<-read_csv("meta/299.csv")
+#meta<-read_csv("meta/299.csv")
+meta<-read_csv("meta/318.csv")
 ```
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
@@ -105,7 +107,7 @@ covar2pcs <- function(samples, cov) {
 
 ```{r, warning=FALSE, message=FALSE}
 
-cov<-read_delim("outputs/1102/299.cov", col_names=FALSE, delim=" ") %>% as.matrix()
+cov<-read_delim("outputs/1102/318.cov", col_names=FALSE, delim=" ") %>% as.matrix()
 
 ```
 
@@ -206,7 +208,7 @@ ggsave("outputs/1102/CRT-pca.pdf", width=14, height=12)
 
 ## More samples
 PRJNA690579
-Elwha paired end. Pulled five samples.
+Elwha paired end. Pulled five samples. Pulled five samples from all Campbell et al. sampling locations.
 
 ```{sh, eval=FALSE}
 srun -p high -t 48:00:00 --mem=32G --nodes=2 $HOME/angsd/angsd -P 24  -bam bamlists/318.bamlist -minInd 286 -GL 1 -ref genome/omyV6Chr.fasta \
@@ -217,6 +219,7 @@ python $HOME/pcangsd/pcangsd.py -beagle outputs/1102/318.beagle.gz -admix -o out
 python $HOME/pcangsd/pcangsd.py -beagle outputs/1102/318.beagle.gz -kinship -admix -admix_K 4 -o outputs/1102/admix4 -threads 10
 python $HOME/pcangsd/pcangsd.py -beagle outputs/1102/318.beagle.gz -kinship -admix -admix_K 5 -o outputs/1102/admix5 -threads 10
 python $HOME/pcangsd/pcangsd.py -beagle outputs/1102/318.beagle.gz -kinship -admix -admix_K 6 -o outputs/1102/admix6 -threads 10
+python $HOME/pcangsd/pcangsd.py -beagle outputs/1102/318.beagle.gz -kinship -admix -admix_K 7 -o outputs/1102/admix7 -threads 10
 
 ```
 
@@ -394,9 +397,48 @@ ggsave("outputs/1102/kplot6.jpeg", width=16, height=8)
 ```
 
 
+```{r}
+k<-npyLoad("outputs/1102/admix7.admix.Q.npy") %>% as_tibble() 
+#Need to rename all colnames smartly!
+
+colnames(k)<-gsub("V","Q",colnames(k))
+k$Bamlist<-meta$Bamlist
+k<-left_join(k, meta)
+k <-k %>% arrange(MajorGroup,Group, Watershed) %>% #arrange(Q1, Q2, Q3, by_group=TRUE) %>%  ungroup() %>% mutate(Index=1:n())
+  mutate(Index=1:n())
+
+
+
+q<-k %>% dplyr::select(Index, Bamlist, Q1, Q2, Q3, Q4, Q5, Q6, Q7) %>% gather(key=Ancestry, value=Q, 3:9)
+qs<-left_join(q,meta)
+pops2<-qs  %>% group_by(MajorGroup, Group) %>% mutate(Start=min(Index), Stop=max(Index)) %>% 
+  select(Location,Start,Stop) %>% unique() %>% 
+  mutate(Position=round((Start+Stop)/2)) %>% ungroup() %>% select(-Location) %>% unique()
+
+kplot7<-ggplot(qs) +
+  geom_col(aes(x=Index, y=Q, fill=Ancestry), color="NA", size = 0, width = 1)+
+  geom_segment(data=pops2, x = pops2$Start - 0.5, y=0, xend = pops2$Start-0.5, yend=1, alpha=0.9, size=0.25) +
+  geom_segment(data=pops2, x = pops2$Stop[length(pops2$Stop)]  + 0.5, y=0, xend= pops2$Stop[length(pops2$Stop)] + 0.5, yend=1,  alpha=0.9,
+               size=0.25) +
+  geom_segment(x=0, xend= pops2$Stop[length(pops2$Stop)], y=1, yend=1, alpha=0.9, size=0.25) +
+  theme(axis.text.x = element_text(angle=45, hjust=1)) +
+  ylim(0,1.01) +
+  xlim(-0.1, pops2$Stop[length(pops2$Stop)]+1) +
+  theme(panel.background = element_blank())+
+  scale_x_continuous(breaks=pops2$Position, labels=pops2$Group) +
+  xlab("")  
+ #facet_grid(Watershed~MajorGroup, scales="free_x", space="free")
+
+ # scale_fill_viridis_d(option="magma")
+  #theme(axis.text.x = element_blank(), axis.ticks.x=element_blank()) 
+#  theme(legend.position = "NA") +
+
+kplot7
+ggsave("outputs/1102/kplot7.jpeg", width=16, height=8)
+```
 
 ```{r}
-reds<- k %>% filter(Group=="REDB") %>% arrange(Watershed) %>% mutate(Index=1:n()) %>%
+reds<- k %>% filter(Group %in% c("MCRT","REDB")) %>% arrange(Watershed) %>% mutate(Index=1:n()) %>%
   dplyr::select(Index, Bamlist, Q1, Q2, Q3, Q4, Q5, Q6) %>% gather(key=Ancestry, value=Q, 3:8) %>%
   left_join(meta)
 pops2<-reds %>% group_by(Watershed) %>% mutate(Start=min(Index), Stop=max(Index)) %>% 
@@ -415,7 +457,28 @@ ggplot(reds) +
   theme(panel.background = element_blank())+
   scale_x_continuous(breaks=pops2$Position, labels=pops2$Group) +
   xlab("") +
-  facet_grid(.~Watershed, scales="free_x", space="free")
+  facet_grid(Watershed~MajorGroup, scales="free_x", space="free")
 
-ggsave("outputs/1102/redsk6.jpeg", width=10)
+ggsave("outputs/1102/redsk7.jpeg", height=10)
+```
+
+## VCF
+angsd -P 4 -b bamlists/test14.bamlist -minInd 39  -out outputs/900/test14-maf05p-sites -minMaf 0.05 -minMapQ 30 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 -doGeno 4 -doPost 1 -postCutoff 0.95 -doVcf 1 -rf homoblocks/non-tetrasomic-non-inversion.txt > outputs/900/test14-make-vcf.out 2> outputs/900/test14-make-vcf.err
+
+```{sh, eval=FALSE}
+srun -p high -t 48:00:00 --mem=32G --nodes=2 $HOME/angsd/angsd -P 24  -bam outputs/1102/320.bamlist -minInd 304 -GL 1 -ref genome/omyV6Chr.fasta \
+-doGLF 2 -doMajorMinor 1 -doMaf 1 -doGeno 4 -doPost 1 -SNP_pval 1e-6 -postCutoff 0.95 -doVcf 1 -minMapQ 20 -minQ 20 -r omy01: \
+-out outputs/1102/320 > outputs/1102/vcf.out 2> outputs/1102/vcf.err &
+```
+
+That worked!
+(base) maccamp@farm:~/mccloud-rrt/outputs/1102$ gunzip -c 320.vcf.gz | grep -v "#" | wc -l
+5301
+
+## Adding in single end fish
+
+```{sh, eval=FALSE}
+srun -p high -t 48:00:00 --mem=32G --nodes=2 $HOME/angsd/angsd -P 24  -bam bamlists/339.bamlist -minInd 305 -GL 1 -ref genome/omyV6Chr.fasta \
+-doGLF 2 -doMajorMinor 1 -doMaf 1 -doGeno 4 -doPost 1 -SNP_pval 1e-6 -postCutoff 0.95 -doVcf 1 -minMapQ 20 -minQ 20 -r omy01: \
+-out outputs/1102/339 > outputs/1102/339.out 2> outputs/1102/339.err &
 ```
