@@ -1,0 +1,318 @@
+---
+title: "population-genetics"
+author: "Mac Campbell"
+date: "9/14/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(viridis)
+library(ggpubr)
+library(grid)
+library(gridExtra)
+library(RColorBrewer)
+```
+
+## Population Genetics Analyses of 318 samples
+
+Generate GL file and covariance matrix:
+
+```{sh, eval=FALSE}
+srun -p high -t 48:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 12  -bam bamlists/318.bamlist -minInd 286 -GL 1 -ref genome/omyV6Chr.fasta \
+-doGLF 2 -doMajorMinor 1 -doMaf 2 -SNP_pval 1e-6 -minMapQ 20 -minQ 20 \
+-out outputs/population-genetics/318 > outputs/population-genetics/beagle.out 2> outputs/population-genetics/beagle.err &
+
+python $HOME/pcangsd/pcangsd.py -beagle outputs/population-genetics/318.beagle.gz -o outputs/population-genetics/318 -threads 10
+
+```
+
+```{r}
+meta<-read_csv("meta/318.csv")
+```
+
+Summarize Meta
+
+```{r}
+meta %>% group_by(Group, MajorGroup) %>% summarize(Count=n()) %>% select(MajorGroup, Group, Count) %>% arrange(MajorGroup)
+```
+
+### PCA
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# Some shameless copying from Eric A.
+#' @param samples character vector with the individuals IDs in the order in which
+#' they were passed in the bamlist to angsd.
+#' @param cov covariance matrix
+covar2pcs <- function(samples, cov) {
+  
+  
+  eig <- eigen(cov, symm = TRUE)
+  PC <- as.data.frame(eig$vectors) %>%
+    as_tibble() %>%
+    setNames(sprintf("PC-%02d", 1:ncol(.)))
+  
+  samtib <- tibble(sample = samples)
+  
+  list(
+    PCs = bind_cols(samtib, PC),
+    eigevalues = eig$values
+  )
+}
+```
+
+```{r, warning=FALSE, message=FALSE}
+cov<-read_delim("outputs/1102/318.cov", col_names=FALSE, delim=" ") %>% as.matrix()
+```
+
+
+```{r}
+pca <- covar2pcs(meta$Bamlist, cov)
+
+pca_long <- pca$PCs %>%
+  tidyr::gather(., key = "PC", "val", -sample)
+
+# then expand a grid of the possible comparisons (ordered)
+expg <- expand.grid(sample = pca$PCs$sample,
+                    PCx = sprintf("PC-%02d", 1:6),
+                    PCy = sprintf("PC-%02d", 1:6),
+                    stringsAsFactors = FALSE) %>%
+  tibble::as_tibble()
+
+# then left join the pca results onto that
+pca_pairs <- dplyr::left_join(expg, pca_long, by = c("sample", "PCx" = "PC")) %>%
+  dplyr::rename(val_x = val) %>%
+  dplyr::left_join(pca_long, by = c("sample", "PCy" = "PC")) %>%
+  dplyr::rename(val_y = val)
+
+pp_meta <- pca_pairs %>%   # just keep the first 6 PCs around
+  left_join(., meta, by = c("sample" = "Bamlist"))
+
+# now, that has the first 6 PCs in it.  If we want to focus on the just the
+# first 3, we could do 
+npc <- 3
+pp_meta2 <- pp_meta %>%
+  filter( (PCx %in% sprintf("PC-%02d", 1:npc)) & 
+            (PCy %in% sprintf("PC-%02d", 1:npc)) )
+
+ggplot(pp_meta2, aes(x = val_x, y = val_y, fill = Group)) +
+  geom_point(pch = 21, size = 2) +
+  scale_fill_discrete(na.value = "white") + 
+  facet_grid(PCy ~ PCx, scales = "free")
+
+
+```
+```{r}
+
+eig <- eigen(cov, symm = TRUE)
+var<-eig$values/sum(eig$values)
+cumvar<-cumsum(eig$values)/sum(eig$values)
+
+head(var)
+head(cumvar)
+```
+
+
+```{r}
+sub12<-pp_meta2 %>% filter( (PCx =="PC-01") & (PCy =="PC-02") )
+
+pc12<-ggplot(sub12, aes(x = val_x, y = val_y, fill = Group, shape=MajorGroup)) +
+  geom_point(size = 2, alpha=0.75) +
+  scale_fill_discrete(na.value = "white") + 
+  theme_bw()+
+  theme(panel.grid=element_blank())+
+  xlab(paste("PC1", " ", round((100*var[1]),2), "%", sep = ""))+
+  ylab(paste("PC2", " ", round((100*var[2]),2), "%", sep = ""))+
+  scale_fill_viridis_d(option = "magma") +
+  scale_shape_manual("Major Group", values = c(21,22,22,23,24,25)) +
+  theme(legend.position = "")+
+  ggtitle("A") +
+  theme(plot.title = element_text(face="bold", size=16))
+
+sub13<-pp_meta2 %>% filter( (PCx =="PC-01") & (PCy =="PC-03") )
+
+pc13<-ggplot(sub13, aes(x = val_x, y = val_y, fill = Group, shape=MajorGroup)) +
+  geom_point(size = 2, alpha=0.75) +
+  scale_fill_discrete(na.value = "white") + 
+  theme_bw()+
+  theme(panel.grid=element_blank())+
+  xlab(paste("PC1", " ", round((100*var[1]),2), "%", sep = ""))+
+  ylab(paste("PC3", " ", round((100*var[3]),2), "%", sep = ""))+
+  scale_fill_viridis_d(option = "magma") +
+  scale_shape_manual("Major Group", values = c(21,22,22,23,24,25)) +
+  guides(fill = guide_legend(override.aes=list(shape=15, color= viridis(8, option="magma")))) +
+  ggtitle("B") +
+  theme(plot.title = element_text(face="bold", size=16))
+
+
+pcs<-ggarrange(pc12, pc13, ncol = 2, widths=c(1.1, 1.4))
+pcs
+
+ggsave("outputs/population-genetics/pcs.pdf", width=9.5, height=4.5)
+
+```
+
+
+#### Get REDB
+
+204 samples of REDB + MCRT    
+```{r}
+redb<-meta %>% filter(OriginalGroup=="REDB")
+write_tsv(select(redb, Path), "bamlists/redb.bamlist", col_names = FALSE)
+```
+
+```{sh, eval=FALSE}
+srun -p high -t 48:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 6  -bam bamlists/redb.bamlist -minInd 184 -GL 1 -ref genome/omyV6Chr.fasta \
+-doGLF 2 -doMajorMinor 1 -doMaf 2 -SNP_pval 1e-6 -minMapQ 20 -minQ 20  \
+-out outputs/population-genetics/redb > outputs/population-genetics/redb.out 2> outputs/population-genetics/redb.err &
+
+python $HOME/pcangsd/pcangsd.py -beagle outputs/population-genetics/redb.beagle.gz -admix -o outputs/population-genetics/redb -threads 10
+
+```
+
+```{r, warning=FALSE, message=FALSE}
+
+cov<-read_delim("outputs/population-genetics/redb.cov", col_names=FALSE, delim=" ") %>% as.matrix()
+
+```
+
+```{r}
+pca <- covar2pcs(redb$Bamlist, cov)
+
+pca_long <- pca$PCs %>%
+  tidyr::gather(., key = "PC", "val", -sample)
+
+# then expand a grid of the possible comparisons (ordered)
+expg <- expand.grid(sample = pca$PCs$sample,
+                    PCx = sprintf("PC-%02d", 1:6),
+                    PCy = sprintf("PC-%02d", 1:6),
+                    stringsAsFactors = FALSE) %>%
+  tibble::as_tibble()
+
+# then left join the pca results onto that
+pca_pairs <- dplyr::left_join(expg, pca_long, by = c("sample", "PCx" = "PC")) %>%
+  dplyr::rename(val_x = val) %>%
+  dplyr::left_join(pca_long, by = c("sample", "PCy" = "PC")) %>%
+  dplyr::rename(val_y = val)
+
+pp_meta <- pca_pairs %>%   # just keep the first 6 PCs around
+  left_join(., redb, by = c("sample" = "Bamlist"))
+
+# now, that has the first 6 PCs in it.  If we want to focus on the just the
+# first 3, we could do 
+npc <- 3
+pp_meta2 <- pp_meta %>%
+  filter( (PCx %in% sprintf("PC-%02d", 1:npc)) & 
+            (PCy %in% sprintf("PC-%02d", 1:npc)) )
+
+ggplot(pp_meta2) +
+  geom_point(aes(x=val_x, y=val_y, fill=Watershed, shape=MajorGroup), alpha=0.75) +
+  theme_bw() +
+  scale_shape_manual(values = c(21,24)) +
+  facet_grid(PCx ~ PCy) +
+  guides(fill = guide_legend(override.aes=list(shape=22)))
+
+```
+
+
+```{r}
+
+eig <- eigen(cov, symm = TRUE)
+var<-eig$values/sum(eig$values)
+cumvar<-cumsum(eig$values)/sum(eig$values)
+
+head(var)
+head(cumvar)
+```
+
+
+```{r}
+sub12<-pp_meta2 %>% filter( (PCx =="PC-01") & (PCy =="PC-02") )
+
+rb12<-ggplot(sub12) +
+  geom_point(aes(x = val_x, y = val_y, fill = Watershed, shape=MajorGroup), size = 2, alpha=0.75) +
+  scale_fill_discrete(na.value = "white") + 
+  theme_bw()+
+  theme(panel.grid=element_blank())+
+  xlab(paste("PC1", " ", round((100*var[1]),2), "%", sep = ""))+
+  ylab(paste("PC2", " ", round((100*var[2]),2), "%", sep = ""))+
+#  scale_fill_viridis_d(option = "magma") +
+  scale_shape_manual("Major Group", values = c(24,25)) +
+  theme(legend.position = "")+
+  guides(fill = guide_legend(override.aes=list(shape=22))) +
+  ggtitle("A") +
+  theme(plot.title = element_text(face="bold", size=16))
+
+
+
+sub13<-pp_meta2 %>% filter( (PCx =="PC-01") & (PCy =="PC-03") )
+
+rb13<-ggplot(sub13, aes(x = val_x, y = val_y, fill = Watershed, shape=MajorGroup)) +
+  geom_point(size = 2, alpha=0.75) +
+  scale_fill_discrete(na.value = "white") + 
+  theme_bw()+
+  theme(panel.grid=element_blank())+
+  xlab(paste("PC1", " ", round((100*var[1]),2), "%", sep = ""))+
+  ylab(paste("PC3", " ", round((100*var[3]),2), "%", sep = ""))+
+  scale_shape_manual("Major Group", values = c(24,25)) +
+  guides(fill = guide_legend(override.aes=list(shape=22))) +
+  ggtitle("B") +
+  theme(plot.title = element_text(face="bold", size=16))
+
+
+ggarrange(rb12, rb13, ncol = 2, widths=c(1.1, 1.4))
+
+
+ggsave("outputs/population-genetics/redb-pcs.jpeg", width=8, height=6)
+
+```
+
+Combine   
+
+```{r}
+a<-pc12 + theme(legend.position = "right") +   guides(fill = guide_legend(override.aes=list(shape=15, color= viridis(8, option="magma")))) +
+  theme(legend.title=element_text(size=10), legend.text=element_text(size=8),
+        legend.spacing.y = unit(.05,"cm"))
+a
+```
+
+```{r}
+b<-rb12 + theme(legend.position = "right") + ggtitle("B") +
+    theme(legend.title=element_text(size=10), legend.text=element_text(size=8),
+          legend.spacing.y = unit(.05,"cm"))
+b
+```
+
+```{r}
+blank <- grid.rect(gp=gpar(col="white"))
+```
+
+```{r}
+ggarrange(arrangeGrob(a, blank, ncol=2, widths=c(8.5,1)), b, ncol = 1, nrow=2)
+ggsave("outputs/population-genetics/combined-pcs.pdf", width=6, height=8)
+```
+
+
+### Admixture
+
+```{sh, eval=FALSE}
+for i in {1..6}; 
+  do echo $i; 
+  do $HOME/angsd/misc/NGSadmix -likes outputs/population-genetics/318.beagle.gz -K $i -o outputs/population-genetics/ngsadmix-k$i -P 3
+done;
+```
+
+Following file:///Users/mac/github/pike-time/801-ngsAdmix-subset.html for plotting
+
+Plotting by group_by(MajorGroup, Group)
+
+Setting up colors
+
+```{r}
+cols<-brewer.pal(6, "Spectral")
+ggplot()+geom_point(aes(x=c(1,2,3,4,5,6), y=c(1,1,1,1,1,1)), col=cols, cex=5)
+```

@@ -83,6 +83,16 @@ Moving in more samples here:
 meta<-read_csv("meta/318.csv")
 ```
 
+### Summarize Meta
+
+```{r}
+bars<-meta %>% group_by(Group, MajorGroup) %>% summarize(Count=n()) %>% select(MajorGroup, Group, Count) %>% arrange(MajorGroup)
+
+
+```
+
+
+
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 # Some shameless copying from Eric A.
 #' @param samples character vector with the individuals IDs in the order in which
@@ -185,14 +195,41 @@ pc13<-ggplot(sub13, aes(x = val_x, y = val_y, fill = Group, shape=MajorGroup)) +
  # theme(legend.position = "")+
   theme(plot.title = element_text(hjust = 0.5)) +
   scale_fill_viridis_d(option = "magma") +
-  scale_shape_manual(values = c(21,22,22,23,24,25)) +
+  scale_shape_manual("Major Group", values = c(21,22,22,23,24,25)) +
   guides(fill = guide_legend(override.aes=list(shape=15, color= viridis(8, option="magma")))) 
 
-pcs<-ggarrange(pc12, pc13, ncol = 2, widths=c(1.1, 1.4))
+pcs<-ggarrange(pc12, pc13, ncol = 2, widths=c(1.1, 1.5))
 pcs
+
+ggsave("outputs/1102/pcs.pdf", width=8, height=4.5)
 
 ```
 
+```{r}
+fig<-ggplot(sub12, aes(x = val_x, y = val_y, fill = Group, shape=MajorGroup)) +
+  geom_point(size = 2, alpha=0.75) +
+  scale_fill_discrete(na.value = "white") + 
+  theme_bw()+
+  theme(panel.grid=element_blank())+
+  xlab(paste("PC1", " ", round((100*var[1]),2), "%", sep = ""))+
+  ylab(paste("PC2", " ", round((100*var[2]),2), "%", sep = ""))+
+  scale_fill_viridis_d(option = "magma") +
+  scale_shape_manual(values = c(21,22,22,23,24,25)) +
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+fig
+```
+
+## Pull out REDB and MCRT
+
+```{r}
+ggplot(pp_meta %>% filter(Group %in% c("REDB","MCRT")), aes(x = val_x, y = val_y, shape = Group, color=Watershed)) +
+  geom_point(size = 2, alpha=0.75) +
+  scale_fill_discrete(na.value = "white") + 
+  facet_grid(PCy ~ PCx, scales = "free") 
+
+ggsave("outputs/1102/REDB-pca.pdf", width=14, height=12)
+```
 
 ## Pull out RAINB
 
@@ -212,7 +249,7 @@ Elwha paired end. Pulled five samples. Pulled five samples from all Campbell et 
 
 ```{sh, eval=FALSE}
 srun -p high -t 48:00:00 --mem=32G --nodes=2 $HOME/angsd/angsd -P 24  -bam bamlists/318.bamlist -minInd 286 -GL 1 -ref genome/omyV6Chr.fasta \
--doGLF 2 -doMajorMinor 1 -doMaf 2 -SNP_pval 1e-6 -minMapQ 20 -minQ 20 -r omy01: \
+-doGLF 2 -doMajorMinor 1 -doMaf 2 -SNP_pval 1e-6 -minMapQ 20 -minQ 20 \
 -out outputs/1102/318 > outputs/1102/beagle.out 2> outputs/1102/beagle.err &
 
 python $HOME/pcangsd/pcangsd.py -beagle outputs/1102/318.beagle.gz -admix -o outputs/1102/318 -threads 10
@@ -481,4 +518,77 @@ That worked!
 srun -p high -t 48:00:00 --mem=32G --nodes=2 $HOME/angsd/angsd -P 24  -bam bamlists/339.bamlist -minInd 305 -GL 1 -ref genome/omyV6Chr.fasta \
 -doGLF 2 -doMajorMinor 1 -doMaf 1 -doGeno 4 -doPost 1 -SNP_pval 1e-6 -postCutoff 0.95 -doVcf 1 -minMapQ 20 -minQ 20 -r omy01: \
 -out outputs/1102/339 > outputs/1102/339.out 2> outputs/1102/339.err &
+
+python $HOME/pcangsd/pcangsd.py -beagle outputs/1102/339.beagle.gz -admix -o outputs/1102/339 -threads 10
+
+```
+
+```{r}
+
+meta<-read_csv("meta/339.csv")
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# Some shameless copying from Eric A.
+#' @param samples character vector with the individuals IDs in the order in which
+#' they were passed in the bamlist to angsd.
+#' @param cov covariance matrix
+covar2pcs <- function(samples, cov) {
+  
+  
+  eig <- eigen(cov, symm = TRUE)
+  PC <- as.data.frame(eig$vectors) %>%
+    as_tibble() %>%
+    setNames(sprintf("PC-%02d", 1:ncol(.)))
+  
+  samtib <- tibble(sample = samples)
+  
+  list(
+    PCs = bind_cols(samtib, PC),
+    eigevalues = eig$values
+  )
+}
+```
+
+```{r, warning=FALSE, message=FALSE}
+
+cov<-read_delim("outputs/1102/339.cov", col_names=FALSE, delim=" ") %>% as.matrix()
+
+```
+
+```{r}
+pca <- covar2pcs(meta$Bamlist, cov)
+
+pca_long <- pca$PCs %>%
+  tidyr::gather(., key = "PC", "val", -sample)
+
+# then expand a grid of the possible comparisons (ordered)
+expg <- expand.grid(sample = pca$PCs$sample,
+                    PCx = sprintf("PC-%02d", 1:6),
+                    PCy = sprintf("PC-%02d", 1:6),
+                    stringsAsFactors = FALSE) %>%
+  tibble::as_tibble()
+
+# then left join the pca results onto that
+pca_pairs <- dplyr::left_join(expg, pca_long, by = c("sample", "PCx" = "PC")) %>%
+  dplyr::rename(val_x = val) %>%
+  dplyr::left_join(pca_long, by = c("sample", "PCy" = "PC")) %>%
+  dplyr::rename(val_y = val)
+
+pp_meta <- pca_pairs %>%   # just keep the first 6 PCs around
+  left_join(., meta, by = c("sample" = "Bamlist"))
+
+# now, that has the first 6 PCs in it.  If we want to focus on the just the
+# first 3, we could do 
+npc <- 3
+pp_meta2 <- pp_meta %>%
+  filter( (PCx %in% sprintf("PC-%02d", 1:npc)) & 
+            (PCy %in% sprintf("PC-%02d", 1:npc)) )
+
+ggplot(pp_meta2, aes(x = val_x, y = val_y, fill = Group)) +
+  geom_point(pch = 21, size = 2) +
+  scale_fill_discrete(na.value = "white") + 
+  facet_grid(PCy ~ PCx, scales = "free")
+
+
 ```
