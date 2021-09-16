@@ -1,0 +1,186 @@
+---
+title: "population-genetics-redband"
+author: "Mac Campbell"
+date: "9/16/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+
+```{r}
+library(tidyverse)
+library(viridis)
+library(ggpubr)
+library(grid)
+library(gridExtra)
+library(RColorBrewer)
+```
+
+```{r}
+meta<-read_csv("meta/318.csv")
+redb<-meta %>% filter(OriginalGroup=="REDB")
+redb$Watershed<-gsub("Lower Pit River", "Pit River", redb$Watershed)
+redb$Watershed<-gsub("Upper Pit River", "Pit River", redb$Watershed)
+redb$Watershed<-gsub("NF Pit River", "Pit River NF", redb$Watershed)
+redb$Watershed<-gsub("SF Pit River", "Pit River SF", redb$Watershed)
+```
+
+#### REDB admix
+
+```{sh, eval=FALSE}
+for i in {1..5};
+do
+
+    for j in {1..10};
+    do echo -n "$i - $j ";
+    srun -p high -t 2:00:00 $HOME/angsd/misc/NGSadmix -likes outputs/population-genetics/redb.beagle.gz -K $i -o outputs/population-genetics/ngsadmixredb/ngsadmix-k$i-run$j -P 10;
+    done;
+
+  echo "";
+done;
+```
+
+Best K?
+
+
+```{sh, eval=FALSE}
+(for log in `ls outputs/population-genetics/ngsadmixredb/*.log`; do grep -Po 'like=\K[^ ]+' $log; done) > outputs/population-genetics/redb-clumpak.txt;
+```
+
+
+```{r}
+logs <- read_tsv("outputs/population-genetics/redb-clumpak.txt", col_names=c("Likes"))
+
+logs$K <- c(rep("1", 10), rep("2", 10), rep("3", 10), rep("4", 
+    10), rep("5", 10))
+
+write_tsv(logs %>% select(K, Likes), "outputs/population-genetics/redb-clump-format.txt", col_names = FALSE)
+```
+
+Again, no stdev @ k=1, optimal k=2
+
+```{r}
+cols<-viridis(6, option = "viridis", alpha = 0.75)
+ggplot()+geom_point(aes(x=c(1,2,3,4,5,6), y=c(1,1,1,1,1,1)), col=cols, cex=5)
+```
+
+```{r}
+q2<-read_delim("outputs/population-genetics/ngsadmixredb/ngsadmix-k2-run1.qopt", delim=" ", col_names=FALSE) %>% select(X1, X2) %>%
+  rename(Q1=X1, Q2=X2)
+
+df2<-bind_cols(q2, redb)            
+
+#Hmmm.... Seems we may want to add a column of K=2 so that we can facet later. But we may need to plot separately so that we can all the colors lined up using ggarrange
+
+q2s<-df2 %>% select(MajorGroup, Group, Watershed, Q1, Q2) %>% arrange(MajorGroup, Group, Watershed) %>%
+  mutate(Index=1:n()) %>% gather(key=Ancestry, value=Q, 4:5) %>% mutate(K=2)
+
+pops2<-q2s  %>% group_by(MajorGroup, Group, Watershed) %>% mutate(Start=min(Index), Stop=max(Index)) %>% 
+  select(Watershed,Start,Stop) %>% unique() %>% 
+  mutate(Position=round((Start+Stop)/2)) %>% ungroup() %>% unique()
+
+pops2$Watershed<-gsub("Upper McCloud River","Upper       \nMcCloud River", pops2$Watershed)
+```
+
+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+```{r}
+p2 <- ggplot(q2s) + 
+  geom_col(aes(x=Index,y=Q, fill=Ancestry), color="NA", size = 0, width = 1) +
+  geom_segment(data=pops2, x = pops2$Start - 0.5, y=0, xend = pops2$Start-0.5, yend=1, alpha=0.9, size=0.25) +
+  geom_segment(data=pops2, x = pops2$Stop[length(pops2$Stop)]  + 0.5, y=0, xend= pops2$Stop[length(pops2$Stop)] + 0.5, yend=1,  alpha=0.9,
+               size=0.25) +
+  geom_segment(x=0, xend= pops2$Stop[length(pops2$Stop)], y=1, yend=1, alpha=0.9, size=0.25) +
+  geom_segment(x=0, xend= pops2$Stop[length(pops2$Stop)], y=0, yend=0, alpha=0.9, size=0.25) +
+  ylim(-0.1,1.01) +
+  xlim(-0.1, pops2$Stop[length(pops2$Stop)]+1) +
+  theme(panel.background = element_blank()) +
+  xlab("") +
+  scale_fill_manual(values=c(cols[2], cols[5])) +
+  theme(legend.position = "") +
+  theme(axis.text.x = element_blank(), axis.ticks.x=element_blank())
+  
+p2
+
+```
+
+
+```{r}
+q3<-read_delim("outputs/population-genetics/ngsadmixredb/ngsadmix-k3-run1.qopt", delim=" ", col_names=FALSE) %>% select(X1, X2, X3) %>%
+  rename(Q1=X1, Q2=X2, Q3=X3)
+
+df3<-bind_cols(q3, redb)            
+
+
+q3s<-df3 %>% select(MajorGroup, Group, Watershed, Q1, Q2, Q3) %>% arrange(MajorGroup, Group, Watershed) %>%
+  mutate(Index=1:n()) %>% gather(key=Ancestry, value=Q, 4:6) %>% mutate(K=3)
+```
+
+```{r}
+p3<-ggplot(q3s) + 
+  geom_col(aes(x=Index,y=Q, fill=Ancestry), color="NA", size = 0, width = 1) +
+  geom_segment(data=pops2, x = pops2$Start - 0.5, y=0, xend = pops2$Start-0.5, yend=1, alpha=0.9, size=0.25) +
+  geom_segment(data=pops2, x = pops2$Stop[length(pops2$Stop)]  + 0.5, y=0, xend= pops2$Stop[length(pops2$Stop)] + 0.5, yend=1,  alpha=0.9,
+               size=0.25) +
+  geom_segment(x=0, xend= pops2$Stop[length(pops2$Stop)], y=1, yend=1, alpha=0.9, size=0.25) +
+  geom_segment(x=0, xend= pops2$Stop[length(pops2$Stop)], y=0, yend=0, alpha=0.9, size=0.25) +
+ # theme(axis.text.x = element_text(angle=45, hjust=1)) +
+  theme(axis.text.x=element_blank()) +
+  theme(axis.ticks.x= element_blank()) +
+  ylim(-0.1,1.01) +
+  xlim(-0.1, pops2$Stop[length(pops2$Stop)]+1) +
+  theme(panel.background = element_blank()) +
+#  scale_x_continuous(breaks=pops2$Position, labels=pops2$Group) +
+  theme(legend.position = "") +
+  xlab("") +
+  scale_fill_manual(values=c(cols[2], cols[5], cols[1])) 
+
+p3
+```
+
+```{r}
+q4<-read_delim("outputs/population-genetics/ngsadmixredb/ngsadmix-k4-run1.qopt", delim=" ", col_names=FALSE) %>% select(X1, X2, X3, X4) %>%
+  rename(Q1=X1, Q2=X2, Q3=X3, Q4=X4)
+
+df4<-bind_cols(q4, redb)            
+
+
+q4s<-df4 %>% select(MajorGroup, Group, Watershed, Q1, Q2, Q3, Q4) %>% arrange(MajorGroup, Group, Watershed) %>%
+  mutate(Index=1:n()) %>% gather(key=Ancestry, value=Q, 4:7) %>% mutate(K=4)
+```
+
+```{r}
+p4<-ggplot(q4s) + 
+  geom_col(aes(x=Index,y=Q, fill=Ancestry), color="NA", size = 0, width = 1) +
+  geom_segment(data=pops2, x = pops2$Start - 0.5, y=0, xend = pops2$Start-0.5, yend=1, alpha=0.9, size=0.25) +
+  geom_segment(data=pops2, x = pops2$Stop[length(pops2$Stop)]  + 0.5, y=0, xend= pops2$Stop[length(pops2$Stop)] + 0.5, yend=1,  alpha=0.9,
+               size=0.25) +
+  geom_segment(x=0, xend= pops2$Stop[length(pops2$Stop)], y=1, yend=1, alpha=0.9, size=0.25) +
+  geom_segment(x=0, xend= pops2$Stop[length(pops2$Stop)], y=0, yend=0, alpha=0.9, size=0.25) +
+  theme(axis.text.x = element_text(angle=45, hjust=1)) +
+  #theme(axis.text.x=element_blank()) +
+  #theme(axis.ticks.x= element_blank()) +
+  ylim(-0.1,1.01) +
+  xlim(-0.1, pops2$Stop[length(pops2$Stop)]+1) +
+  theme(panel.background = element_blank()) +
+  scale_x_continuous(breaks=pops2$Position, labels=pops2$Watershed) +
+  theme(legend.position = "") +
+  xlab("") +
+  scale_fill_manual(values=c(cols[5], cols[6], cols[2], cols[1]) )
+
+p4
+```
+
+```{r}
+ggarrange(p2 + ggtitle("K = 2") + theme(plot.title = element_text(hjust=0.5, face="bold")),
+          p3 + ggtitle("K = 3") + theme(plot.title = element_text(hjust=0.5, face="bold")),
+          p4 + ggtitle("K = 4") + theme(plot.title = element_text(hjust=0.5, face="bold")),
+          ncol=1, heights=c(1,1,1.5))
+
+ggsave("outputs/population-genetics/redb-ks.jpeg", height=5, width=8)
+```

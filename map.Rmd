@@ -150,7 +150,6 @@ ggplot(polyMax) +
   theme(panel.grid=element_blank(), panel.background = element_blank()) +
   theme(legend.position = "")
 
-ggsave("outputs/map/map1.pdf", width=8.5, height=11)
 
 ```
 
@@ -182,6 +181,54 @@ ggplot(polyMax) +
   theme(panel.grid=element_blank(), panel.background = element_blank()) +
   theme(legend.position = "") 
 
-ggsave("outputs/map/map2.pdf", width=8.5, height=11)
+
+```
+
+Split up Kern.
+```{r}
+kern<-fortify(hucs[hucs@data$HUC_CODE==18030001,])
+mid<-round(mean(kern$order), 0)
+kern1<-filter(kern, order >=mid) %>% mutate(Group="KRNB")
+kern2<-filter(kern, order < mid) %>% mutate(Group="LKGT")
+
+yuba<-fortify(hucs[hucs@data$HUC_CODE==18020125,])
+midy<-round(mean(yuba$order), 0)
+yuba1<-filter(yuba, order >=midy) %>% mutate(Group="CRT")
+yuba2<-filter(yuba, order < midy) %>% mutate(Group="REDB")
+
+```
+
+```{r}
+ggplot() +
+  geom_polygon(data=kern1, aes(x=long, y=lat, group=group, fill=Group), color="black", alpha=0.5) +
+  geom_polygon(data=kern2, aes(x=long, y=lat, group=group, fill=Group), color="black", alpha=0.5) +
+  geom_polygon(data=yuba1, aes(x=long, y=lat, group=group, fill=Group), color="black", alpha=0.5) +
+  geom_polygon(data=yuba2, aes(x=long, y=lat, group=group, fill=Group), color="black", alpha=0.5)
+
+```
+
+```{r}
+ggplot(polyMax %>% filter(!(HUC08 %in% c("18030001","18020125")))) +
+   geom_raster(data = rast.table, mapping = aes(x = x, y = y), fill = rast.table$rgb, interpolate = TRUE) +
+   geom_polygon(data=sacdf, aes(x=long, y=lat, group=group), fill="blue", alpha=0.25, size=0) +
+   geom_polygon(aes(x=long, y=lat, group=group, fill=Group), color="black", alpha=0.5) +
+   geom_polygon(data=kern1, aes(x=long, y=lat, group=group, fill=Group), color="black", alpha=0.5) +
+   geom_polygon(data=kern2, aes(x=long, y=lat, group=group, fill=Group), color="black", alpha=0.5) +
+   geom_polygon(data=yuba1, aes(x=long, y=lat, group=group, fill=Group), color="black", alpha=0.5) +
+   geom_polygon(data=yuba2, aes(x=long, y=lat, group=group, fill=Group), color="black", alpha=0.5) +
+   geom_label_repel(data=sizes %>% filter(!(Group %in% c("CAGT","CRT","EGLK"))), 
+                   aes(x=mLong, y=mLat, label=paste0(Group, ": ", Count), fill=Group), alpha=0.75) +
+    geom_label_repel(data=sizes %>% filter(Group %in% c("CAGT","CRT","EGLK")), 
+                   aes(x=mLong, y=mLat, label=paste0(Group, ": ", Count), fill=Group), color="white", alpha=0.75) +
+  scale_fill_viridis_d(option="magma") +
+  coord_fixed(ratio=1.3, ylim=c(33,43), xlim=c(-123,-116)) +
+  xlab("\nLongitude") +
+  ylab("Latitude\n") +
+  theme_bw() +
+  theme(panel.grid=element_blank(), panel.background = element_blank()) +
+  theme(legend.position = "")  +
+  theme(axis.title=element_text(size=12, face="bold")) 
+
+ggsave("outputs/map/figure-1.pdf", width=8.5/1.5, height=11/1.5)
 
 ```

@@ -34,7 +34,7 @@ srun -p high -t 1:00:00 python $HOME/pcangsd/pcangsd.py -beagle outputs/populati
 Estimating population allele frequencies     
 EM (MAF) converged at iteration: 6     
 
-Number of sites after MAF filtering (0.05): 119325     
+    Number of sites after MAF filtering (0.05): 119325     
 
 ```{r}
 meta<-read_csv("meta/318.csv")
@@ -325,7 +325,7 @@ done;
 Creating an output file to present:
 
 ```{sh, eval=FALSE}
-(for log in `ls ouputs/population-genetics/ngsadmix318/*.log`; do grep -Po 'like=\K[^ ]+' $log; done) > outputs/population-genetics/318-clumpak.txt;
+(for log in `ls outputs/population-genetics/ngsadmix318/*.log`; do grep -Po 'like=\K[^ ]+' $log; done) > outputs/population-genetics/318-clumpak.txt;
 ```
 
 Formatting:   
@@ -340,9 +340,16 @@ logs <- read_tsv("outputs/population-genetics/318-clumpak.txt", col_names=c("Lik
 logs$K <- c(rep("1", 10), rep("2", 10), rep("3", 10), rep("4", 
     10), rep("5", 10), rep("6", 10))
 
-write_tsv(logs, "outputs/population-genetics/318-clump-format.txt", col_names = FALSE)
+write_tsv(logs %>% select(K, Likes), "outputs/population-genetics/318-clump-format.txt", col_names = FALSE)
 ```
 http://clumpak.tau.ac.il/bestK.html
+
+
+All K 1 likes are	-29365115.981868, so method doesn't work, I changed one to 1	-29365115.95, chooses 3
+Dropping k 1 likes out ... Choose 3 again.
+
+
+
 
 Following file:///Users/mac/github/pike-time/801-ngsAdmix-subset.html for plotting
 
@@ -351,7 +358,7 @@ Plotting by group_by(MajorGroup, Group)
 Setting up colors
 
 ```{r}
-cols<-brewer.pal(6, "Spectral")
+cols<-viridis(6, option = "turbo", alpha = 0.75)
 ggplot()+geom_point(aes(x=c(1,2,3,4,5,6), y=c(1,1,1,1,1,1)), col=cols, cex=5)
 ```
 Plotting qopt:
@@ -383,29 +390,169 @@ p2 <- ggplot(q2s) +
                size=0.25) +
   geom_segment(x=0, xend= pops2$Stop[length(pops2$Stop)], y=1, yend=1, alpha=0.9, size=0.25) +
   geom_segment(x=0, xend= pops2$Stop[length(pops2$Stop)], y=0, yend=0, alpha=0.9, size=0.25) +
-  theme(axis.text.x = element_text(angle=45, hjust=1)) +
   ylim(-0.1,1.01) +
   xlim(-0.1, pops2$Stop[length(pops2$Stop)]+1) +
   theme(panel.background = element_blank()) +
-  scale_x_continuous(breaks=pops2$Position, labels=pops2$Group) +
   xlab("") +
-  scale_fill_brewer(palette ="Spectral") 
+  scale_fill_manual(values=c(cols[2], cols[5])) +
+  theme(legend.position = "") +
+  theme(axis.text.x = element_blank(), axis.ticks.x=element_blank())
   
 p2
 
 ggsave("outputs/population-genetics/k2.jpg")
 ```
-#### REDB admix
 
-```{sh, eval=FALSE}
-for i in {1..5};
-do
+Is there a non-tedious way to do this?
 
-    for j in {1..10};
-    do echo -n "$i - $j ";
-    srun -p high -t 2:00:00 $HOME/angsd/misc/NGSadmix -likes outputs/population-genetics/redb.beagle.gz -K $i -o outputs/population-genetics/ngsadmixredb/ngsadmix-k$i-run$j -P 10;
-    done;
+```{r}
+q3<-read_delim("outputs/population-genetics/ngsadmix318/ngsadmix-k3-run1.qopt", delim=" ", col_names=FALSE) %>% select(X1, X2, X3) %>%
+  rename(Q1=X1, Q2=X2, Q3=X3)
 
-  echo "";
-done;
+df3<-bind_cols(q3, meta)            
+
+
+q3s<-df3 %>% select(MajorGroup, Group, Subgroup, Q1, Q2, Q3) %>% arrange(MajorGroup, Group, Subgroup) %>%
+  mutate(Index=1:n()) %>% gather(key=Ancestry, value=Q, 4:6) %>% mutate(K=3)
 ```
+
+```{r}
+p3<-ggplot(q3s) + 
+  geom_col(aes(x=Index,y=Q, fill=Ancestry), color="NA", size = 0, width = 1) +
+  geom_segment(data=pops2, x = pops2$Start - 0.5, y=0, xend = pops2$Start-0.5, yend=1, alpha=0.9, size=0.25) +
+  geom_segment(data=pops2, x = pops2$Stop[length(pops2$Stop)]  + 0.5, y=0, xend= pops2$Stop[length(pops2$Stop)] + 0.5, yend=1,  alpha=0.9,
+               size=0.25) +
+  geom_segment(x=0, xend= pops2$Stop[length(pops2$Stop)], y=1, yend=1, alpha=0.9, size=0.25) +
+  geom_segment(x=0, xend= pops2$Stop[length(pops2$Stop)], y=0, yend=0, alpha=0.9, size=0.25) +
+ # theme(axis.text.x = element_text(angle=45, hjust=1)) +
+  theme(axis.text.x=element_blank()) +
+  theme(axis.ticks.x= element_blank()) +
+  ylim(-0.1,1.01) +
+  xlim(-0.1, pops2$Stop[length(pops2$Stop)]+1) +
+  theme(panel.background = element_blank()) +
+#  scale_x_continuous(breaks=pops2$Position, labels=pops2$Group) +
+  theme(legend.position = "") +
+  xlab("") +
+  scale_fill_manual(values=c(cols[6], cols[4], cols[5])) 
+
+p3
+```
+
+```{r}
+q4<-read_delim("outputs/population-genetics/ngsadmix318/ngsadmix-k4-run1.qopt", delim=" ", col_names=FALSE) %>% select(X1, X2, X3, X4) %>%
+  rename(Q1=X1, Q2=X2, Q3=X3, Q4=X4)
+
+df4<-bind_cols(q4, meta)            
+
+
+q4s<-df4 %>% select(MajorGroup, Group, Subgroup, Q1, Q2, Q3, Q4) %>% arrange(MajorGroup, Group, Subgroup) %>%
+  mutate(Index=1:n()) %>% gather(key=Ancestry, value=Q, 4:7) %>% mutate(K=4)
+```
+
+```{r}
+p4<-ggplot(q4s) + 
+  geom_col(aes(x=Index,y=Q, fill=Ancestry), color="NA", size = 0, width = 1) +
+  geom_segment(data=pops2, x = pops2$Start - 0.5, y=0, xend = pops2$Start-0.5, yend=1, alpha=0.9, size=0.25) +
+  geom_segment(data=pops2, x = pops2$Stop[length(pops2$Stop)]  + 0.5, y=0, xend= pops2$Stop[length(pops2$Stop)] + 0.5, yend=1,  alpha=0.9,
+               size=0.25) +
+  geom_segment(x=0, xend= pops2$Stop[length(pops2$Stop)], y=1, yend=1, alpha=0.9, size=0.25) +
+  geom_segment(x=0, xend= pops2$Stop[length(pops2$Stop)], y=0, yend=0, alpha=0.9, size=0.25) +
+ # theme(axis.text.x = element_text(angle=45, hjust=1)) +
+  theme(axis.text.x=element_blank()) +
+  theme(axis.ticks.x= element_blank()) +
+  ylim(-0.1,1.01) +
+  xlim(-0.1, pops2$Stop[length(pops2$Stop)]+1) +
+  theme(panel.background = element_blank()) +
+#  scale_x_continuous(breaks=pops2$Position, labels=pops2$Group) +
+  #theme(legend.position = "") +
+  xlab("") +
+  scale_fill_manual(values=c(cols[6], cols[5], cols[2], cols[4]) )
+
+p4
+```
+
+```{r}
+q5<-read_delim("outputs/population-genetics/ngsadmix318/ngsadmix-k5-run1.qopt", delim=" ", col_names=FALSE) %>% select(X1, X2, X3, X4, X5) %>%
+  rename(Q1=X1, Q2=X2, Q3=X3, Q4=X4, Q5=X5)
+
+df5<-bind_cols(q5, meta)            
+
+
+q5s<-df5 %>% select(MajorGroup, Group, Subgroup, Q1, Q2, Q3, Q4, Q5) %>% arrange(MajorGroup, Group, Subgroup) %>%
+  mutate(Index=1:n()) %>% gather(key=Ancestry, value=Q, 4:8) %>% mutate(K=5)
+```
+
+```{r}
+p5<-ggplot(q5s) + 
+  geom_col(aes(x=Index,y=Q, fill=Ancestry), color="NA", size = 0, width = 1) +
+  geom_segment(data=pops2, x = pops2$Start - 0.5, y=0, xend = pops2$Start-0.5, yend=1, alpha=0.9, size=0.25) +
+  geom_segment(data=pops2, x = pops2$Stop[length(pops2$Stop)]  + 0.5, y=0, xend= pops2$Stop[length(pops2$Stop)] + 0.5, yend=1,  alpha=0.9,
+               size=0.25) +
+  geom_segment(x=0, xend= pops2$Stop[length(pops2$Stop)], y=1, yend=1, alpha=0.9, size=0.25) +
+  geom_segment(x=0, xend= pops2$Stop[length(pops2$Stop)], y=0, yend=0, alpha=0.9, size=0.25) +
+ # theme(axis.text.x = element_text(angle=45, hjust=1)) +
+  theme(axis.text.x=element_blank()) +
+  theme(axis.ticks.x= element_blank()) +
+  ylim(-0.1,1.01) +
+  xlim(-0.1, pops2$Stop[length(pops2$Stop)]+1) +
+  theme(panel.background = element_blank()) +
+#  scale_x_continuous(breaks=pops2$Position, labels=pops2$Group) +
+ # theme(legend.position = "") +
+  xlab("") +
+  scale_fill_manual(values=c(cols[3], cols[5], cols[2], cols[4], cols[6]) )
+
+p5
+```
+
+```{r}
+q6<-read_delim("outputs/population-genetics/ngsadmix318/ngsadmix-k6-run1.qopt", delim=" ", col_names=FALSE) %>% select(X1, X2, X3, X4, X5, X6) %>%
+  rename(Q1=X1, Q2=X2, Q3=X3, Q4=X4, Q5=X5, Q6=X6)
+
+df6<-bind_cols(q6, meta)            
+
+
+q6s<-df6 %>% select(MajorGroup, Group, Subgroup, Q1, Q2, Q3, Q4, Q5, Q6) %>% arrange(MajorGroup, Group, Subgroup) %>%
+  mutate(Index=1:n()) %>% gather(key=Ancestry, value=Q, 4:9) %>% mutate(K=6)
+```
+
+```{r}
+p6<-ggplot(q6s) + 
+  geom_col(aes(x=Index,y=Q, fill=Ancestry), color="NA", size = 0, width = 1) +
+  geom_segment(data=pops2, x = pops2$Start - 0.5, y=0, xend = pops2$Start-0.5, yend=1, alpha=0.9, size=0.25) +
+  geom_segment(data=pops2, x = pops2$Stop[length(pops2$Stop)]  + 0.5, y=0, xend= pops2$Stop[length(pops2$Stop)] + 0.5, yend=1,  alpha=0.9,
+               size=0.25) +
+  geom_segment(x=0, xend= pops2$Stop[length(pops2$Stop)], y=1, yend=1, alpha=0.9, size=0.25) +
+  geom_segment(x=0, xend= pops2$Stop[length(pops2$Stop)], y=0, yend=0, alpha=0.9, size=0.25) +
+ # theme(axis.text.x = element_text(angle=45, hjust=1)) +
+  theme(axis.text.x=element_blank()) +
+  theme(axis.ticks.x= element_blank()) +
+  ylim(-0.1,1.01) +
+  xlim(-0.1, pops2$Stop[length(pops2$Stop)]+1) +
+  theme(panel.background = element_blank()) +
+#  scale_x_continuous(breaks=pops2$Position, labels=pops2$Group) +
+ theme(legend.position = "") +
+  xlab("") +
+  scale_fill_manual(values=c(cols[5], cols[6], cols[3], cols[4], cols[2], cols[1]) ) +
+  scale_x_continuous(breaks=pops2$Position, labels=pops2$Group) +
+  theme(axis.text.x = element_text(angle=45, hjust=1)) +
+  ggtitle("K = 6") +
+  theme(plot.title = element_text(hjust=0.5, face="bold"))
+
+
+p6
+```
+Ticks
+
+
+```{r}
+ggarrange(p2 + ggtitle("K = 2") + theme(plot.title = element_text(hjust=0.5, face="bold")),
+          p3 + ggtitle("K = 3") + theme(plot.title = element_text(hjust=0.5, face="bold")),
+          p4 + ggtitle("K = 4") + theme(plot.title = element_text(hjust=0.5, face="bold")) + theme(legend.position = ""),
+          p5 + ggtitle("K = 5") + theme(plot.title = element_text(hjust=0.5, face="bold")) + theme(legend.position = ""),
+          p6,
+          ncol=1, heights=c(1,1,1,1,1.25))
+
+ggsave("outputs/population-genetics/ks.jpg", height=8, width = 8)
+```
+
+
