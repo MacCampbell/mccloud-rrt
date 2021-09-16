@@ -1,0 +1,187 @@
+---
+title: "map"
+author: "Mac Campbell"
+date: "9/15/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+## I need to plot my samples.
+
+WBD ftp://rockyftp.cr.usgs.gov/vdelivery/Datasets/Staged/Hydrography/WBD/
+
+Finding HUCS  https://apps.nationalmap.gov/viewer/
+
+
+```{r}
+library(tidyverse)
+library(rgdal)
+library(ggrepel)
+library(maps)
+library(mapdata)
+
+```
+
+```{r,eval=FALSE}
+huc<-readOGR("/Users/mac/github/mccloud-rrt/outputs/1000/huc250k_shp/","huc250k")
+hucs <- spTransform(huc, CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+save(hucs, file="outputs/map/hucs.rda")
+```
+
+```{r}
+load("outputs/map/hucs.rda")
+metam<-read_csv("meta/318-edited.csv") %>% group_by(MajorGroup,Group,HUC08) %>% summarize(Count=n())
+```
+
+
+This is huc08
+
+warner <- warner[warner@data$HUC_CODE=="17120007",]
+warner <- fortify(warner)
+
+```{r}
+sfk<-hucs[hucs@data$HUC_CODE=="18030002",]
+sfk<-fortify(sfk) %>% mutate(HUC08=18030002) %>% mutate(mLong=mean(long), mLat=mean(lat)) %>%
+  left_join(filter(metam, HUC08==18030002))
+
+```
+
+```{r}
+w=4
+h=.01
+ggplot(sfk) +
+  geom_polygon(aes(x=long, y=lat, order=order), fill="grey50") +
+#  geom_text(data=select(sfk,mLong,mLat,Group,Count) %>% unique(), aes(x=mLong, y=mLat, label=paste0(Group,": ", Count), color=Group)) +
+ # geom_segment(aes(x=mLong, xend=mLong, y=mLat, yend=mLat+mLat*h), color="white", size=w) +
+  geom_text_repel(data=select(sfk,mLong,mLat,Group,Count) %>% unique(), aes(x=mLong, y=mLat, label=paste0(Group, ": ", Count), color=Group)) +
+  scale_color_viridis_d(option="magma")
+```
+
+
+Maybe I can generate a list of huc08 and plot the sample sizes onto those with ggrepel
+
+Making general.
+
+```{r}
+dfs<-function(code) {
+  df1<-hucs[hucs@data$HUC_CODE==code,]
+  df2<-fortify(df1) %>% mutate(HUC08=code) %>% mutate(mLong=mean(long), mLat=mean(lat)) 
+
+  return(df2)
+  }
+```
+
+```{r}
+poly<-do.call(rbind, lapply(unique(drop_na(metam)$HUC08), dfs))
+```
+Getting metam aligned
+```{r}
+psub<-poly %>% select(HUC08, mLong, mLat) %>% unique()
+
+polyMax<-left_join(metam, poly)
+sizes<-left_join(metam, psub)
+```
+
+```{r}
+ggplot(polyMax) +
+  geom_polygon(aes(x=long, y=lat, group=group, fill=Group), color="black") +
+  geom_label_repel(data=sizes %>% filter(!(Group %in% c("CAGT","CRT","EGLK"))), 
+                   aes(x=mLong, y=mLat, label=paste0(Group, ": ", Count), fill=Group), color="black") +
+    geom_label_repel(data=sizes %>% filter(Group %in% c("CAGT","CRT","EGLK")), 
+                   aes(x=mLong, y=mLat, label=paste0(Group, ": ", Count), fill=Group), color="white") +
+  scale_fill_viridis_d(option="magma") +
+  coord_fixed(ratio=1.3) +
+  xlab("Longitude") +
+  ylab("Latitude") +
+  theme_bw() +
+  theme(panel.grid=element_blank())
+
+```
+
+```{r}
+
+states<-map_data("state") %>% filter(region %in% c("california","oregon","nevada"))
+
+cali<- map_data("state") %>% filter(region %in% c("california"))
+domain <- c(min(states$long), max(states$long), min(states$lat-3), max(states$lat))
+
+# here I copy Eric A some more
+tidy_subset <- function(x, longlat) {
+  x@data$id <- rownames(x@data)
+  x.f <- broom::tidy(x) %>%
+    dplyr::left_join(., x@data, by = "id") %>%
+    dplyr::tbl_df() %>%
+    filter(long > longlat[1],
+           long < longlat[2],
+           lat > longlat[3],
+           lat < longlat[4])
+}
+
+
+nat.earth<-stack("~/github/mccloud-rrt/outputs/1000/NE2_HR_LC_SR_W_DR/NE2_HR_LC_SR_W_DR.tif")
+
+nat.crop <- crop(nat.earth, y=extent(domain))
+
+rast.table <- data.frame(xyFromCell(nat.crop, 1:ncell(nat.crop)),
+                         getValues(nat.crop/255))
+
+
+rast.table$rgb <- with(rast.table, rgb(NE2_HR_LC_SR_W_DR.1,
+                                       NE2_HR_LC_SR_W_DR.2,
+                                       NE2_HR_LC_SR_W_DR.3,
+                                       1))
+```
+
+```{r}
+ggplot(polyMax) +
+  geom_raster(data = rast.table, mapping = aes(x = x, y = y), fill = rast.table$rgb, interpolate = TRUE) +
+  geom_polygon(aes(x=long, y=lat, group=group, fill=Group), color="black") +
+  geom_label_repel(data=sizes %>% filter(!(Group %in% c("CAGT","CRT","EGLK"))), 
+                   aes(x=mLong, y=mLat, label=paste0(Group, ": ", Count), fill=Group)) +
+    geom_label_repel(data=sizes %>% filter(Group %in% c("CAGT","CRT","EGLK")), 
+                   aes(x=mLong, y=mLat, label=paste0(Group, ": ", Count), fill=Group), color="white") +
+  scale_fill_viridis_d(option="magma") +
+  coord_fixed(ratio=1.3, ylim=c(32,44)) +
+  xlab("Longitude") +
+  ylab("Latitude") +
+  theme(panel.grid=element_blank(), panel.background = element_blank()) +
+  theme(legend.position = "")
+
+ggsave("outputs/map/map1.pdf", width=8.5, height=11)
+
+```
+
+What about Sac drainage?
+
+180201
+
+```{r}
+sac<-hucs[grepl("^18020", hucs@data$HUC_CODE),]
+
+sacdf<-fortify(sac)
+
+ggplot() +
+  geom_polygon(data=sacdf, aes(x=long, y=lat, group=group), fill="grey50", size=0)
+```
+```{r}
+ggplot(polyMax) +
+  geom_raster(data = rast.table, mapping = aes(x = x, y = y), fill = rast.table$rgb, interpolate = TRUE) +
+   geom_polygon(data=sacdf, aes(x=long, y=lat, group=group), fill="blue", alpha=0.25, size=0) +
+   geom_polygon(aes(x=long, y=lat, group=group, fill=Group), color="black", alpha=0.5) +
+  geom_label_repel(data=sizes %>% filter(!(Group %in% c("CAGT","CRT","EGLK"))), 
+                   aes(x=mLong, y=mLat, label=paste0(Group, ": ", Count), fill=Group)) +
+    geom_label_repel(data=sizes %>% filter(Group %in% c("CAGT","CRT","EGLK")), 
+                   aes(x=mLong, y=mLat, label=paste0(Group, ": ", Count), fill=Group), color="white") +
+  scale_fill_viridis_d(option="magma") +
+  coord_fixed(ratio=1.3, ylim=c(33,43), xlim=c(-123,-116)) +
+  xlab("Longitude") +
+  ylab("Latitude") +
+  theme(panel.grid=element_blank(), panel.background = element_blank()) +
+  theme(legend.position = "") 
+
+ggsave("outputs/map/map2.pdf", width=8.5, height=11)
+
+```

@@ -27,9 +27,14 @@ srun -p high -t 48:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 12  -bam bamli
 -doGLF 2 -doMajorMinor 1 -doMaf 2 -SNP_pval 1e-6 -minMapQ 20 -minQ 20 \
 -out outputs/population-genetics/318 > outputs/population-genetics/beagle.out 2> outputs/population-genetics/beagle.err &
 
-python $HOME/pcangsd/pcangsd.py -beagle outputs/population-genetics/318.beagle.gz -o outputs/population-genetics/318 -threads 10
+srun -p high -t 1:00:00 python $HOME/pcangsd/pcangsd.py -beagle outputs/population-genetics/318.beagle.gz -o outputs/population-genetics/318 -threads 10
 
 ```
+358591 SNPs total    
+Estimating population allele frequencies     
+EM (MAF) converged at iteration: 6     
+
+Number of sites after MAF filtering (0.05): 119325     
 
 ```{r}
 meta<-read_csv("meta/318.csv")
@@ -66,7 +71,7 @@ covar2pcs <- function(samples, cov) {
 ```
 
 ```{r, warning=FALSE, message=FALSE}
-cov<-read_delim("outputs/1102/318.cov", col_names=FALSE, delim=" ") %>% as.matrix()
+cov<-read_delim("outputs/population-genetics/318.cov", col_names=FALSE, delim=" ") %>% as.matrix()
 ```
 
 
@@ -170,10 +175,14 @@ srun -p high -t 48:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 6  -bam bamlis
 -doGLF 2 -doMajorMinor 1 -doMaf 2 -SNP_pval 1e-6 -minMapQ 20 -minQ 20  \
 -out outputs/population-genetics/redb > outputs/population-genetics/redb.out 2> outputs/population-genetics/redb.err &
 
-python $HOME/pcangsd/pcangsd.py -beagle outputs/population-genetics/redb.beagle.gz -admix -o outputs/population-genetics/redb -threads 10
+srun -p high -t 1:00:00 python $HOME/pcangsd/pcangsd.py -beagle outputs/population-genetics/redb.beagle.gz -admix -o outputs/population-genetics/redb -threads 10
 
 ```
+248319 SNPs total.  
 
+EM (MAF) converged at iteration: 6     
+
+Number of sites after MAF filtering (0.05): 96926      
 ```{r, warning=FALSE, message=FALSE}
 
 cov<-read_delim("outputs/population-genetics/redb.cov", col_names=FALSE, delim=" ") %>% as.matrix()
@@ -300,11 +309,40 @@ ggsave("outputs/population-genetics/combined-pcs.pdf", width=6, height=8)
 ### Admixture
 
 ```{sh, eval=FALSE}
-for i in {1..6}; 
-  do echo $i; 
-  do $HOME/angsd/misc/NGSadmix -likes outputs/population-genetics/318.beagle.gz -K $i -o outputs/population-genetics/ngsadmix-k$i -P 3
+for i in {1..6};
+do
+
+    for j in {1..10};
+    do echo -n "$i - $j ";
+    srun -p high -t 2:00:00 $HOME/angsd/misc/NGSadmix -likes outputs/population-genetics/318.beagle.gz -K $i -o outputs/population-genetics/ngsadmix318/ngsadmix-k$i-run$j -P 10;
+    done;
+
+  echo "";
 done;
 ```
+
+
+Creating an output file to present:
+
+```{sh, eval=FALSE}
+(for log in `ls ouputs/population-genetics/ngsadmix318/*.log`; do grep -Po 'like=\K[^ ]+' $log; done) > outputs/population-genetics/318-clumpak.txt;
+```
+
+Formatting:   
+(base) Macs-MacBook-Pro-2:mccloud-rrt mac$ head outputs/population-genetics/log_prob.txt 
+2	826952.5
+2	828784.9
+2	828540.2
+
+```{r}
+logs <- read_tsv("outputs/population-genetics/318-clumpak.txt", col_names=c("Likes"))
+
+logs$K <- c(rep("1", 10), rep("2", 10), rep("3", 10), rep("4", 
+    10), rep("5", 10), rep("6", 10))
+
+write_tsv(logs, "outputs/population-genetics/318-clump-format.txt", col_names = FALSE)
+```
+http://clumpak.tau.ac.il/bestK.html
 
 Following file:///Users/mac/github/pike-time/801-ngsAdmix-subset.html for plotting
 
@@ -315,4 +353,59 @@ Setting up colors
 ```{r}
 cols<-brewer.pal(6, "Spectral")
 ggplot()+geom_point(aes(x=c(1,2,3,4,5,6), y=c(1,1,1,1,1,1)), col=cols, cex=5)
+```
+Plotting qopt:
+```{r}
+q2<-read_delim("outputs/population-genetics/ngsadmix318/ngsadmix-k2-run1.qopt", delim=" ", col_names=FALSE) %>% select(X1, X2) %>%
+  rename(Q1=X1, Q2=X2)
+
+df2<-bind_cols(q2, meta)            
+
+#Hmmm.... Seems we may want to add a column of K=2 so that we can facet later. But we may need to plot separately so that we can all the colors lined up using ggarrange
+
+q2s<-df2 %>% select(MajorGroup, Group, Subgroup, Q1, Q2) %>% arrange(MajorGroup, Group, Subgroup) %>%
+  mutate(Index=1:n()) %>% gather(key=Ancestry, value=Q, 4:5) %>% mutate(K=2)
+
+pops2<-qs  %>% group_by(MajorGroup, Group) %>% mutate(Start=min(Index), Stop=max(Index)) %>% 
+  select(MajorGroup,Start,Stop) %>% unique() %>% 
+  mutate(Position=round((Start+Stop)/2)) %>% ungroup() %>% unique()
+```
+
+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+```{r}
+p2 <- ggplot(q2s) + 
+  geom_col(aes(x=Index,y=Q, fill=Ancestry), color="NA", size = 0, width = 1) +
+  geom_segment(data=pops2, x = pops2$Start - 0.5, y=0, xend = pops2$Start-0.5, yend=1, alpha=0.9, size=0.25) +
+  geom_segment(data=pops2, x = pops2$Stop[length(pops2$Stop)]  + 0.5, y=0, xend= pops2$Stop[length(pops2$Stop)] + 0.5, yend=1,  alpha=0.9,
+               size=0.25) +
+  geom_segment(x=0, xend= pops2$Stop[length(pops2$Stop)], y=1, yend=1, alpha=0.9, size=0.25) +
+  geom_segment(x=0, xend= pops2$Stop[length(pops2$Stop)], y=0, yend=0, alpha=0.9, size=0.25) +
+  theme(axis.text.x = element_text(angle=45, hjust=1)) +
+  ylim(-0.1,1.01) +
+  xlim(-0.1, pops2$Stop[length(pops2$Stop)]+1) +
+  theme(panel.background = element_blank()) +
+  scale_x_continuous(breaks=pops2$Position, labels=pops2$Group) +
+  xlab("") +
+  scale_fill_brewer(palette ="Spectral") 
+  
+p2
+
+ggsave("outputs/population-genetics/k2.jpg")
+```
+#### REDB admix
+
+```{sh, eval=FALSE}
+for i in {1..5};
+do
+
+    for j in {1..10};
+    do echo -n "$i - $j ";
+    srun -p high -t 2:00:00 $HOME/angsd/misc/NGSadmix -likes outputs/population-genetics/redb.beagle.gz -K $i -o outputs/population-genetics/ngsadmixredb/ngsadmix-k$i-run$j -P 10;
+    done;
+
+  echo "";
+done;
 ```
