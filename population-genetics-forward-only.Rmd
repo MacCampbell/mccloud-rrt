@@ -27,13 +27,13 @@ We can take the forward only reads from "REDB_MILL_02_RA.sort.bam" and they shou
 
 Putting in /home/maccamp/mccloud-rrt/bams/forward    
 
-```{sh}
+```{sh, eval=FALSE}
 samtools view -f 0x40 -b /home/ehabibi/projects/redbandnewalign/bamfiles2/REDB_MILL_02_RA.sort.bam > REDB_MILL_02_RA.fwd.bam
 ```
 
 This does look to be what we want.... 
 
-```{sh}
+```{sh, eval=FALSE}
 head bamlists/318.bamlist | while read line; do samtools view -f 0x40 -b $line > bams/forward/`basename $line .sort.flt.bam`.fwd.bam ; done;
 ```
 
@@ -51,7 +51,7 @@ Ok, now we have 318 samples in bams/forward like *.fwd.bam
 
 ```{r}
 bam318<-read_tsv("bamlists/318.bamlist", col_names = c("Path"))
-bam318$Path<-gsub("sourced","foward", bam318$Path)
+bam318$Path<-gsub("sourced","forward", bam318$Path)
 bam318$Path<-gsub("/home/maccamp/data/trout-rad/ScottWeir/|/home/maccamp/data/trout-rad/BigCk|/home/maccamp/data/elwha/|/home/maccamp/data/trout-rad/Matilija/|/home/maccamp/data/trout-rad/WFSanGabriel/|/home/maccamp/data/trout-rad/WFSanLuis/", "bams/forward/",bam318$Path)
 
 bam318$Path<-gsub("sort.flt.bam","fwd.bam",bam318$Path)
@@ -80,5 +80,7 @@ srun -p high -t 48:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 12  -bam bamli
 srun -p high -t 1:00:00 python $HOME/pcangsd/pcangsd.py -beagle outputs/population-genetics-forward/339.single.beagle.gz -o outputs/population-genetics-forward/339.single -threads 10
 ```
 
+
+Maybe we should calculate average coverage and also consider raising MAF? Let's see how it plays out.
 
 
