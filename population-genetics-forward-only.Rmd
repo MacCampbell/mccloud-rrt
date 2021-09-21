@@ -1,0 +1,84 @@
+---
+title: "population-genetics-forward-only"
+author: "Mac Campbell"
+date: "9/21/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+## Forward Only
+
+I have some forward only Columbia River RB samples. Can I get them to play nice?
+
+```{r}
+meta<-read_csv("meta/339.csv")
+```
+
+We can take the forward only reads from "REDB_MILL_02_RA.sort.bam" and they should be compatible.
+
+  first in pair (0x40)    
+
+Putting in /home/maccamp/mccloud-rrt/bams/forward    
+
+```{sh}
+samtools view -f 0x40 -b /home/ehabibi/projects/redbandnewalign/bamfiles2/REDB_MILL_02_RA.sort.bam > REDB_MILL_02_RA.fwd.bam
+```
+
+This does look to be what we want.... 
+
+```{sh}
+head bamlists/318.bamlist | while read line; do samtools view -f 0x40 -b $line > bams/forward/`basename $line .sort.flt.bam`.fwd.bam ; done;
+```
+
+The coverage of the genbank samples looks to be much higher overall.
+samtools flagstat ../SRR5933417.1.fastq.sort.bam
+2236738 + 0 in total (QC-passed reads + QC-failed reads)
+
+Loop takes a bit to run, but I think that I can wait a second while it runs.
+
+```{sh, eval=FALSE}
+srun -p high -t 4:00:00 cat bamlists/318.bamlist | while read line; do samtools view -f 0x40 -b $line > bams/forward/`basename $line .sort.flt.bam`.fwd.bam ; done;
+```
+
+Ok, now we have 318 samples in bams/forward like *.fwd.bam
+
+```{r}
+bam318<-read_tsv("bamlists/318.bamlist", col_names = c("Path"))
+bam318$Path<-gsub("sourced","foward", bam318$Path)
+bam318$Path<-gsub("/home/maccamp/data/trout-rad/ScottWeir/|/home/maccamp/data/trout-rad/BigCk|/home/maccamp/data/elwha/|/home/maccamp/data/trout-rad/Matilija/|/home/maccamp/data/trout-rad/WFSanGabriel/|/home/maccamp/data/trout-rad/WFSanLuis/", "bams/forward/",bam318$Path)
+
+bam318$Path<-gsub("sort.flt.bam","fwd.bam",bam318$Path)
+
+bamsingle<-filter(meta, Type=="Single") %>% select(Bamlist) %>% rename(Path=Bamlist)
+
+bams<-bind_rows(bam318,bamsingle)
+
+write_tsv(bams, "bamlists/339.single.bamlist", col_names = FALSE)
+```
+
+```{r}
+meta$Singles<-bams$Path
+```
+
+
+## PCA
+
+First using only omy01
+
+```{sh, eval=FALSE}
+srun -p high -t 48:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 12  -bam bamlists/339.single.bamlist -minInd 305 -GL 1 -ref genome/omyV6Chr.fasta \
+-doGLF 2 -doMajorMinor 1 -doMaf 2 -SNP_pval 1e-6 -minMapQ 20 -minQ 20 -r omy01: \
+-out outputs/population-genetics-forward/339.single > outputs/population-genetics-forward/beagle.out 2> outputs/population-genetics-forward/beagle.err &
+
+srun -p high -t 1:00:00 python $HOME/pcangsd/pcangsd.py -beagle outputs/population-genetics-forward/339.single.beagle.gz -o outputs/population-genetics-forward/339.single -threads 10
+```
+
+
+
