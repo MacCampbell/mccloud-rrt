@@ -79,9 +79,7 @@ bams<-bind_rows(bam318,bamsingle)
 
 
 write_tsv(bams, "bamlists/373.single.bamlist", col_names = FALSE)
-```
 
-```{r}
 meta$Singles<-bams$Path
 ```
 
@@ -101,7 +99,8 @@ srun -p high -t 1:00:00 python $HOME/pcangsd/pcangsd.py -beagle outputs/populati
 
 339:Number of sites after MAF filtering (0.05): 1915 for omy01
 
-373: 
+373: Number of sites after MAF filtering (0.05): 1535 for omy01
+
 
 Maybe we should calculate average coverage and also consider raising MAF? Let's see how it plays out.
 
@@ -210,8 +209,7 @@ pc13<-ggplot(sub13, aes(x = val_x, y = val_y, fill = Group, shape=MajorGroup)) +
   scale_shape_manual("Major Group", values = c(21,22,22,23,24,25)) +
   guides(fill = guide_legend(override.aes=list(shape=15, color= viridis(8, option="magma")))) +
   ggtitle("B") +
-  theme(plot.title = element_text(face="bold", size=16))
-
+  theme(plot.title = element_text(face="bold", size=16)) 
 
 pcs<-ggarrange(pc12, pc13, ncol = 2, widths=c(1.1, 1.4))
 pcs
@@ -222,7 +220,9 @@ well, it is similar.
 ```{r}
 pc12 + ggtitle("PCA of Forward Only Data") + theme(plot.title = element_text(hjust=0.5)) +
   guides(fill = guide_legend(override.aes=list(shape=15, color= viridis(8, option="magma")))) +
-  theme(legend.position = "right")
+  theme(legend.position = "right") +
+  facet_wrap(.~Type)
+
 ggsave("outputs/population-genetics-single/373.PC12.jpeg")
 ```
 
@@ -260,6 +260,9 @@ srun -p high -t 1:00:00 python $HOME/pcangsd/pcangsd.py -beagle outputs/populati
 ```
 
 225: Number of sites after MAF filtering (0.05): 1322
+
+259: Number of sites after MAF filtering (0.05): 1361
+
 ```{r, warning=FALSE, message=FALSE}
 
 cov<-read_delim("outputs/population-genetics-single/259.single.cov", col_names=FALSE, delim=" ") %>% as.matrix()
@@ -319,7 +322,7 @@ head(cumvar)
 ```{r}
 sub12<-pp_meta2 %>% filter( (PCx =="PC-01") & (PCy =="PC-02") ) 
                      
-sub12 %>% group_by(Subspecies) %>% summarize(Count=n())
+sub12 %>% group_by(MajorGroup) %>% summarize(Count=n())
 
 rb12<-ggplot(sub12) +
   geom_point(aes(x = val_x, y = val_y, fill = Watershed, shape=MajorGroup), size = 2, alpha=0.75) +
@@ -332,7 +335,8 @@ rb12<-ggplot(sub12) +
   scale_shape_manual("Interior Redband Lineage", values = c(24,25,23)) +
   theme(plot.title = element_text(face="bold", size=16, hjust=0.5)) +
   guides(fill = guide_legend(override.aes=list(shape=22))) +
-  ggtitle("Interior Redband Lineages Forward Only PCA")
+  ggtitle("Interior Redband Lineages Forward Only PCA") +
+  facet_grid(.~Type)
 
 
 rb12
@@ -352,9 +356,26 @@ rb13<-ggplot(sub13, aes(x = val_x, y = val_y, fill = Watershed, shape=MajorGroup
   ylab(paste("PC3", " ", round((100*var[3]),2), "%", sep = ""))+
   scale_shape_manual("Major Group", values = c(24,25)) +
   guides(fill = guide_legend(override.aes=list(shape=22))) +
-  theme(plot.title = element_text(face="bold", size=16))
+  theme(plot.title = element_text(face="bold", size=16)) +
+  facet_wrap(.~Type)
 
 
+rb13
+```
+
+### CRT
+
+```{r}
+crt<-meta %>% filter(OriginalGroup %in% c("REDB", "CRT", "HRNB"))
+
+write_tsv(select(crt), "bamlists/281.bamlist",col_names = FALSE)
 
 ```
 
+```{sh, eval=FALSE}
+srun -p high -t 48:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 12  -bam bamlists/281.bamlist -minInd 253 -GL 1 -ref genome/omyV6Chr.fasta \
+-doGLF 2 -doMajorMinor 1 -doMaf 2 -SNP_pval 1e-6 -minMapQ 20 -minQ 20 -r omy01: \
+-out outputs/population-genetics-forward/281.single > outputs/population-genetics-forward/281beagle.out 2> outputs/population-genetics-forward/281beagle.err &
+
+srun -p high -t 1:00:00 python $HOME/pcangsd/pcangsd.py -beagle outputs/population-genetics-forward/281.single.beagle.gz -o outputs/population-genetics-forward/281.single -threads 10
+```
