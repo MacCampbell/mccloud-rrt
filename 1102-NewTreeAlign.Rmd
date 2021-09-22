@@ -578,9 +578,8 @@ pca_pairs <- dplyr::left_join(expg, pca_long, by = c("sample", "PCx" = "PC")) %>
 pp_meta <- pca_pairs %>%   # just keep the first 6 PCs around
   left_join(., meta, by = c("sample" = "Bamlist"))
 
-# now, that has the first 6 PCs in it.  If we want to focus on the just the
-# first 3, we could do 
-npc <- 3
+# now, that has the first 6 PCs in it.  If we want to focus on 
+npc <- 2
 pp_meta2 <- pp_meta %>%
   filter( (PCx %in% sprintf("PC-%02d", 1:npc)) & 
             (PCy %in% sprintf("PC-%02d", 1:npc)) )
