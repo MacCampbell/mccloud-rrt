@@ -102,7 +102,7 @@ srun -p high -t 1:00:00 python $HOME/pcangsd/pcangsd.py -beagle outputs/populati
 
 373: Number of sites after MAF filtering (0.05): 1535 for omy01
 
-383:
+388:
 
 Maybe we should calculate average coverage and also consider raising MAF? Let's see how it plays out.
 
