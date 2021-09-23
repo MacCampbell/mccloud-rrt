@@ -257,15 +257,20 @@ srun -p high -t 48:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 12  -bam bamli
 -out outputs/population-genetics-forward/259.single > outputs/population-genetics-forward/259beagle.out 2> outputs/population-genetics-forward/259beagle.err &
 
 srun -p high -t 1:00:00 python $HOME/pcangsd/pcangsd.py -beagle outputs/population-genetics-forward/259.single.beagle.gz -o outputs/population-genetics-forward/259.single -threads 10
+
+srun -p high -t 1:00:00 python $HOME/pcangsd/pcangsd.py -beagle outputs/population-genetics-forward/259.single.beagle.gz -minMaf .3 -o outputs/population-genetics-forward/259.single.3 -threads 10
 ```
 
 225: Number of sites after MAF filtering (0.05): 1322
 
 259: Number of sites after MAF filtering (0.05): 1361
 
+259: Number of sites after MAF filtering (0.3): 362
+
 ```{r, warning=FALSE, message=FALSE}
 
 cov<-read_delim("outputs/population-genetics-single/259.single.cov", col_names=FALSE, delim=" ") %>% as.matrix()
+#cov<-read_delim("outputs/population-genetics-single/259.single.3.cov", col_names=FALSE, delim=" ") %>% as.matrix()
 
 ```
 
@@ -341,7 +346,7 @@ rb12<-ggplot(sub12) +
 
 rb12
 
-ggsave("outputs/population-genetics-single/259.PC12.redb.jpeg")
+ggsave("outputs/population-genetics-single/259.PC12.maf.redb.jpeg")
 ```
 
 ```{r}
@@ -368,14 +373,16 @@ rb13
 ```{r}
 crt<-meta %>% filter(OriginalGroup %in% c("REDB", "CRT", "HRNB"))
 
-write_tsv(select(crt), "bamlists/281.bamlist",col_names = FALSE)
+write_tsv(select(crt, Singles), "bamlists/281.bamlist",col_names = FALSE)
 
 ```
 
 ```{sh, eval=FALSE}
-srun -p high -t 48:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 12  -bam bamlists/281.bamlist -minInd 253 -GL 1 -ref genome/omyV6Chr.fasta \
+srun -p high -t 48:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 12  -bam bamlists/281.bamlist -minInd 233 -GL 1 -ref genome/omyV6Chr.fasta \
 -doGLF 2 -doMajorMinor 1 -doMaf 2 -SNP_pval 1e-6 -minMapQ 20 -minQ 20 -r omy01: \
 -out outputs/population-genetics-forward/281.single > outputs/population-genetics-forward/281beagle.out 2> outputs/population-genetics-forward/281beagle.err &
 
+
 srun -p high -t 1:00:00 python $HOME/pcangsd/pcangsd.py -beagle outputs/population-genetics-forward/281.single.beagle.gz -o outputs/population-genetics-forward/281.single -threads 10
 ```
+
