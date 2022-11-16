@@ -14,4 +14,4 @@
 
 module load julia/1.8.2     
 
-julia -p 4 904-explict-network.jl
+julia -p 4 904-explicit-network.jl
