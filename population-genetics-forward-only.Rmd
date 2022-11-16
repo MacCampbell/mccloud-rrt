@@ -13,6 +13,8 @@ knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 library(tidyverse)
 library(viridis)
 library(ggpubr)
+library(vcfR)
+library(adegenet)
 ```
 
 ## Forward Only
@@ -91,11 +93,11 @@ meta$Singles<-bams$Path
 First using only omy01
 
 ```{sh, eval=FALSE}
-srun -p high -t 48:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 12  -bam bamlists/407.single.bamlist -minInd 366 -GL 1 -ref genome/omyV6Chr.fasta \
--doGLF 2 -doMajorMinor 1 -doMaf 2 -SNP_pval 1e-6 -minMapQ 20 -minQ 20 -r omy01: \
--out outputs/population-genetics-forward/407.single > outputs/population-genetics-forward/beagle.out 2> outputs/population-genetics-forward/beagle.err &
-
-srun -p high -t 1:00:00 python $HOME/pcangsd/pcangsd.py -beagle outputs/population-genetics-forward/388.single.beagle.gz -o outputs/population-genetics-forward/388.single -threads 10
+  srun -p high -t 48:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 12  -bam bamlists/407.single.bamlist -minInd 366 -GL 1 -ref genome/omyV6Chr.fasta \
+  -doGLF 2 -doMajorMinor 1 -doMaf 2 -SNP_pval 1e-6 -minMapQ 20 -minQ 20 \
+  -out outputs/population-genetics-forward/407.single > outputs/population-genetics-forward/beagle.out 2> outputs/population-genetics-forward/beagle.err &
+  
+srun -p high -t 1:00:00 python $HOME/pcangsd/pcangsd.py -beagle outputs/population-genetics-forward/407.single.beagle.gz -o outputs/population-genetics-forward/407.single -threads 10
 ```
 
 339:Number of sites after MAF filtering (0.05): 1915 for omy01
@@ -104,7 +106,8 @@ srun -p high -t 1:00:00 python $HOME/pcangsd/pcangsd.py -beagle outputs/populati
 
 388: Number of sites after MAF filtering (0.05): 1494
 
-388 all chroms:  
+407:  Number of sites after MAF filtering (0.05): 1416    
+
 
 Maybe we should calculate average coverage and also consider raising MAF? Let's see how it plays out.
 
@@ -133,7 +136,7 @@ covar2pcs <- function(samples, cov) {
 ```
 
 ```{r, warning=FALSE, message=FALSE}
-cov<-read_delim("outputs/population-genetics-single/388.single.cov", col_names=FALSE, delim=" ") %>% as.matrix()
+cov<-read_delim("outputs/population-genetics-single/407.single.cov", col_names=FALSE, delim=" ") %>% as.matrix()
 ```
 
 
@@ -218,7 +221,7 @@ pc13<-ggplot(sub13, aes(x = val_x, y = val_y, fill = Group, shape=MajorGroup)) +
 pcs<-ggarrange(pc12, pc13, ncol = 2, widths=c(1.1, 1.5))
 pcs
 
-ggsave("outputs/population-genetics-single/388.pcs123.jpeg")
+ggsave("outputs/population-genetics-single/407.pcs123.pdf", width = 10, height=6)
 ```
 
 well, it is similar.
@@ -229,23 +232,34 @@ pc12 + ggtitle("PCA of Forward Only Data") + theme(plot.title = element_text(hju
   theme(legend.position = "right") +
   facet_wrap(.~Type)
 
-ggsave("outputs/population-genetics-single/373.PC12.jpeg")
+ggsave("outputs/population-genetics-single/407.PC12.jpeg")
+```
+
+
+```{r}
+pc13 + ggtitle("PCA of Forward Only Data") + theme(plot.title = element_text(hjust=0.5)) +
+  guides(fill = guide_legend(override.aes=list(shape=15, color= viridis(8, option="magma")))) +
+  theme(legend.position = "right") +
+  facet_wrap(.~Type)
+
 ```
 
 
 ```{r}
 
-ggplot(sub13 %>% filter(MajorGroup %in% c("REDB","CRT")), aes(x = val_x, y = val_y, fill = Group, shape=MajorGroup)) +
+ggplot(sub13 %>% filter(MajorGroup %in% c("CRT","REDB")), aes(x = val_x, y = val_y, fill = Group, shape=MajorGroup)) +
   geom_point(size = 2, alpha=0.75) +
   scale_fill_discrete(na.value = "white") + 
   theme_bw()+
   theme(panel.grid=element_blank())+
   xlab(paste("PC1", " ", round((100*var[1]),2), "%", sep = ""))+
-  ylab(paste("PC2", " ", round((100*var[2]),2), "%", sep = ""))+
+  ylab(paste("PC3", " ", round((100*var[3]),2), "%", sep = ""))+
   scale_shape_manual("Major Group", values = c(21,22,22,23,24,25)) +
   theme(plot.title = element_text(face="bold", size=16)) +
-  guides(fill = guide_legend(override.aes=list(shape=22))) 
+  guides(fill = guide_legend(override.aes=list(shape=22))) +
+  facet_wrap(.~Watershed, ncol=4)
 
+ggsave("outputs/population-genetics-single/407-pcs13-redbcrt.pdf", width=11, height=10)
 
 ```
 
@@ -386,26 +400,29 @@ write_tsv(select(crt, Singles), "bamlists/286.bamlist",col_names = FALSE)
 ```
 
 ```{sh, eval=FALSE}
-srun -p high -t 48:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 12  -bam bamlists/286.bamlist -minInd 218 -GL 1 -ref genome/omyV6Chr.fasta \
--doGLF 2 -doMajorMinor 1 -doMaf 2 -SNP_pval 1e-6 -minMapQ 20 -minQ 20 -r omy01: \
--out outputs/population-genetics-forward/242.single > outputs/population-genetics-forward/242beagle.out 2> outputs/population-genetics-forward/242beagle.err &
+srun -p high -t 48:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 12  -bam bamlists/286.bamlist -minInd 257 -GL 1 -ref genome/omyV6Chr.fasta \
+-doGLF 2 -doMajorMinor 1 -doMaf 2 -SNP_pval 1e-6 -minMapQ 20 -minQ 20 \
+-out outputs/population-genetics-forward/286.single > outputs/population-genetics-forward/286beagle.out 2> outputs/population-genetics-forward/286beagle.err &
 
 
-srun -p high -t 1:00:00 python $HOME/pcangsd/pcangsd.py -beagle outputs/population-genetics-forward/286.single.beagle.gz -o outputs/population-genetics-forward/242.single -threads 10
+srun -p high -t 1:00:00 python $HOME/pcangsd/pcangsd.py -beagle outputs/population-genetics-forward/286.single.beagle.gz -o outputs/population-genetics-forward/286.single -threads 10
 
-srun -p high -t 1:00:00 python $HOME/pcangsd/pcangsd.py -beagle outputs/population-genetics-forward/286.single.beagle.gz -o outputs/population-genetics-forward/242.single.3 -minMaf 0.3 -threads 10
+srun -p high -t 1:00:00 python $HOME/pcangsd/pcangsd.py -beagle outputs/population-genetics-forward/286.single.beagle.gz -o outputs/population-genetics-forward/286.single.3 -minMaf 0.3 -threads 10
 ```
 
 242 Number of sites after MAF filtering (0.05): 1943
 
+286 Number of sites after MAF filtering:  Number of sites after MAF filtering (0.05): 1488
+Number of sites after MAF filtering (0.05): 31756
+
 
 ```{sh, eval=FALSE}
-srun -p high -t 48:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 12 -bam bamlists/242.bamlist -minInd 218 -GL 1 -doPlink 2 -doMajorMinor 1 -doMaf 1 \
--SNP_pval 1e-6 -minMapQ 20 -minQ 20 -minMaf 0.05 -doGeno 4 -doPost 1 -postCutoff 0.95 -out outputs/population-genetics-forward/242.plink  > outputs/population-genetics-forward/242plink.out 2> outputs/population-genetics-forward/242plink.err &
+srun -p high -t 48:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 12 -bam bamlists/286.bamlist -minInd 272 -GL 1 -doPlink 2 -doMajorMinor 1 -doMaf 1 \
+-SNP_pval 1e-6 -minMapQ 20 -minQ 20 -minMaf 0.05 -doGeno 4 -doPost 1 -postCutoff 0.95 -out outputs/population-genetics-forward/286.plink  > outputs/population-genetics-forward/286plink.out 2> outputs/population-genetics-forward/286plink.err &
 ```
 
 ```{r, warning=FALSE, message=FALSE}
-cov<-read_delim("outputs/population-genetics-single/242.single.cov", col_names=FALSE, delim=" ") %>% as.matrix()
+cov<-read_delim("outputs/population-genetics-single/286.single.cov", col_names=FALSE, delim=" ") %>% as.matrix()
 ```
 
 ```{r}
@@ -442,7 +459,8 @@ ggplot(pp_meta2) +
   theme_bw() +
   scale_shape_manual(values = c(21,22,23,24)) +
   facet_grid(PCx ~ PCy) +
-  guides(fill = guide_legend(override.aes=list(shape=22)))
+  guides(fill = guide_legend(override.aes=list(shape=22))) +
+  theme(legend.position = "")
 
 ```
 
@@ -459,7 +477,7 @@ crt12<-ggplot(sub12) +
   theme(panel.grid=element_blank())+
   xlab(paste("PC1", " ", round((100*var[1]),2), "%", sep = ""))+
   ylab(paste("PC2", " ", round((100*var[2]),2), "%", sep = ""))+
-#  scale_fill_viridis_d(option = "magma") +
+  scale_fill_viridis_d(option = "turbo") +
   scale_shape_manual(values=c(21,22,23,24)) +
   theme(plot.title = element_text(face="bold", size=16, hjust=0.5)) +
   guides(fill = guide_legend(override.aes=list(shape=22))) +
@@ -467,7 +485,12 @@ crt12<-ggplot(sub12) +
 
 
 
-crt12
+ggarrange(crt12, crt12 + facet_wrap(.~Watershed, ncol=5), ncol=2, widths=c(1,1.5)) 
+
+ggsave("outputs/population-genetics-single/crt-286-pcs12.jpeg", width=24, height=10)
+
+crt12 + ggtitle("")
+ggsave("outputs/population-genetics-single/crt-286.12.pdf")
 ```
 Largely, we have a Great basin and Columbia lineage as was a Coastal Lineage
 ```{r}
@@ -492,4 +515,48 @@ crt13<-ggplot(sub13, aes(x = val_x, y = val_y, fill = Group, shape=MajorGroup)) 
   scale_shape_manual(values=c(21,22,23,24)) 
 
 crt13
+```
+
+```{r}
+ggarrange(crt12 + ggtitle("A") + theme(legend.position = "") + theme(plot.title = element_text(hjust=0)),
+          crt13 + ggtitle("B") + scale_fill_viridis_d(option = "turbo"), ncol=2, widths = c(1,1.25))
+
+ggsave("outputs/population-genetics-single/crt-286.pcs.pdf", width=8)
+```
+
+
+Looking at base calls:
+
+```{sh, eval=FALSE}
+plink --tped 286.plink.tped --tfam 286.plink.tfam --out binary --recode --allow-extra-chr --noweb
+plink --ped binary.ped --map binary.map --recode vcf --allow-extra-chr -out recode
+```
+
+```{r}
+vcf<-read.vcfR(file="outputs/population-genetics-single/recode.vcf")
+genind<-vcfR2genind(vcf)
+genind@pop<-as.factor(crt$Group)
+```
+
+```{r}
+gen<-genind
+X <- tab(gen, NA.method="mean")
+
+pca1 <- dudi.pca(X,scannf=FALSE,scale=FALSE,nf=3)
+plot(pca1$li)
+```
+
+```{r}
+pcdf<-as_tibble(pca1$l1) %>% rename(PC1=RS1, PC2=RS2, PC3=RS3)
+pcdf$Group<-pop(gen)
+
+eigens<-as_tibble(pca1$eig) %>% rename(Eigen=value) %>% mutate(Porportion=Eigen/sum(Eigen)*100)
+
+ggplot(pcdf)+geom_point(aes(x=PC1, y=PC2, color=Group, shape=Group), alpha=0.75, size=2)+
+  xlab(paste0("PC1 ", round(eigens$Porportion[1],2),"%")) +
+  ylab(paste0("PC2 ", round(eigens$Porportion[2],2),"%")) +
+  theme_bw()+
+  theme(panel.grid=element_blank()) +
+  theme(axis.title = element_text(face="bold")) +
+  theme(legend.title = element_text(face="bold"))
 ```

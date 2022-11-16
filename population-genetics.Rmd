@@ -363,7 +363,7 @@ ggplot()+geom_point(aes(x=c(1,2,3,4,5,6), y=c(1,1,1,1,1,1)), col=cols, cex=5)
 ```
 Plotting qopt:
 ```{r}
-q2<-read_delim("outputs/population-genetics/ngsadmix318/ngsadmix-k2-run1.qopt", delim=" ", col_names=FALSE) %>% select(X1, X2) %>%
+q2<-read_delim("outputs/population-genetics/ngsadmix318/ngsadmix-k2-run1.qopt", delim=" ", col_names=FALSE) %>% dplyr::select(X1, X2) %>%
   rename(Q1=X1, Q2=X2)
 
 df2<-bind_cols(q2, meta)            
@@ -373,15 +373,13 @@ df2<-bind_cols(q2, meta)
 q2s<-df2 %>% select(MajorGroup, Group, Subgroup, Q1, Q2) %>% arrange(MajorGroup, Group, Subgroup) %>%
   mutate(Index=1:n()) %>% gather(key=Ancestry, value=Q, 4:5) %>% mutate(K=2)
 
-pops2<-qs  %>% group_by(MajorGroup, Group) %>% mutate(Start=min(Index), Stop=max(Index)) %>% 
+pops2<-q2s  %>% group_by(MajorGroup, Group) %>% mutate(Start=min(Index), Stop=max(Index)) %>% 
   select(MajorGroup,Start,Stop) %>% unique() %>% 
   mutate(Position=round((Start+Stop)/2)) %>% ungroup() %>% unique()
 ```
 
 
-  theme(axis.title.x=element_blank(),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank()) +
+  
 ```{r}
 p2 <- ggplot(q2s) + 
   geom_col(aes(x=Index,y=Q, fill=Ancestry), color="NA", size = 0, width = 1) +
