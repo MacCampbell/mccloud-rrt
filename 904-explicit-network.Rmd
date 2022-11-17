@@ -34,3 +34,25 @@ ciout <- SNPs2CF(seqMatrix="outputs/900/test14-maf05p-sites.sort.prune.reheadere
                   save.progress=FALSE,
                   cores = 3);
 ```
+
+
+With twelve species this is taking waaaayy to long.
+
+
+```{r, warning=FALSE, message=FALE, eval=FALSE}
+output <- SNPs2CF(seqMatrix="outputs/900/test14-maf05p-sites.sort.prune.reheadered.min4.phy",
+                  ImapName="outputs/904/reduced-imap.txt", between.sp.only = TRUE, max.SNPs = NULL,
+                  n.quartets=3, bootstrap=FALSE, outputName="outputs/904/reduced-btsp.csv",
+                  save.progress=FALSE,
+                  cores = 3);
+```
+
+
+```{r, warning=FALSE, message=FALE, eval=FALSE}
+ciout <- SNPs2CF(seqMatrix="outputs/900/test14-maf05p-sites.sort.prune.reheadered.min4.phy",
+                  ImapName="outputs/904/reduced-imap.txt", between.sp.only = TRUE, max.SNPs = NULL,
+                  n.quartets=3, bootstrap=TRUE, boots.rep=1000,
+                  outputName="outputs/904/reduced-btsp-CI.csv",
+                  save.progress=FALSE,
+                  cores = 3);
+```
