@@ -4,7 +4,7 @@ using CSV, DataFrames;
 CF=readTableCF("/home/maccamp/mccloud-rrt/outputs/904/reduced-btsp.csv");    
 
 using PhyloPlots;    
-treefile = joinpath("/home/maccamp/mccloud-rrt/outputs/904/reduced.newick");
+treefile = joinpath("/home/maccamp/mccloud-rrt/outputs/904/net0-rooted.newick");
 tree = readTopology(treefile);     
 #plot(tree, :R, showEdgeLength=true);
 

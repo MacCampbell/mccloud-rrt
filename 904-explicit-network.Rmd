@@ -9,6 +9,12 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message=FALSE)
 ```
 
+
+```{r}
+library(tanggle)
+library(ape)
+```
+
 ## 
 
 ```{r, warning=FALSE, message=FALSE}
@@ -55,4 +61,14 @@ ciout <- SNPs2CF(seqMatrix="outputs/900/test14-maf05p-sites.sort.prune.reheadere
                   outputName="outputs/904/reduced-btsp-CI.csv",
                   save.progress=FALSE,
                   cores = 3);
+```
+
+
+## plots
+
+```{r}
+net0<-read.tree("outputs/904/net0-rooted.newick") 
+net0<-root(net0, "LCT")
+
+ggtree(net0) + geom_tiplab() + xlim(0,5)
 ```
