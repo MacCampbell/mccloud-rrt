@@ -551,6 +551,8 @@ ggarrange(p2 + ggtitle("K = 2") + theme(plot.title = element_text(hjust=0.5, fac
           ncol=1, heights=c(1,1,1,1,1.25))
 
 ggsave("outputs/population-genetics/ks.jpg", height=8, width = 8)
+ggsave("outputs/population-genetics/ks.pdf", height=8, width = 8)
+
 ```
 
 

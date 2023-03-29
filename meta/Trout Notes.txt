@@ -1,0 +1,42 @@
+https://www.critfc.org/wp-content/uploads/2019/04/19-02.pdf
+
+Source o many samples
+##
+SRR6288466 BioSample: SAMN07839111; Sample name: Mykiss_RAd_5; SRA: SRS2684775 Columbia River Basin SKAM
+
+SRR6288467 BioSample: SAMN07839111; Sample name: Mykiss_RAd_5; SRA: SRS2684775 Columbia River Basin SKAM
+
+SRR6288467 SKAM
+
+SRR6288468 SKAM
+
+SRR6288469 SKAM
+
+Skamania summer steelhead—Skamania summer steelhead were developed from
+Washougal and Klickitat River summer steelhead in the late 1950s at the Skamania Hatchery,
+Washington (Crawford 1979). This stock has been widely used in Washington, Idaho,
+Oregon, California, Indiana, Rhode Island, and North Carolina (Crawford 1979, CDFG
+1994). In many cases, Skamania stock have been introduced where summer steelhead did
+not naturally exist, to provide recreational angling opportunities, for example, the Willamette
+River. Additionally, Skamania stock have been introduced in river basins having endemic
+summer steelhead populations, such as the Stillaguamish and Columbia River tributaries.
+A
+
+SKAM is presumably mixedß
+
+https://www.webapps.nwfsc.noaa.gov/assets/25/5592_06172004_122523_steelhead.pdf
+1	SRR6288845	231.19 M	190.16 Mb	SRX3390226	TUCN_0008		
+2	SRR6288846	104.81 M	88.49 Mb	SRX3390225	TUCN_0010		
+3	SRR6288847	292.33 M	239.04 Mb	SRX3390224	TUCN_0006		
+4	SRR6288848	301.69 M	245.98 Mb	SRX3390223	TUCN_0007		
+5	SRR6288849	291.65 M	241.65 Mb	SRX3390222	TUCN_0004
+
+##Already have 
+SRR5933416.1.fastq.sort.bam Little Jacks
+SRR5933417.1.fastq.sort.bam Little Jacks
+SRR5933432.1.fastq.sort.bam Fawn
+SRR5933433.1.fastq.sort.bam Fawn
+
+
+
+ 

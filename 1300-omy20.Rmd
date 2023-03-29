@@ -1,0 +1,316 @@
+---
+title: "1300-omy20"
+author: "Mac Campbell"
+date: "2023-03-29"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(viridis)
+library(ggpubr)
+library(grid)
+library(gridExtra)
+library(RColorBrewer)
+library(ggrepel)
+```
+
+## Make a PCA of omy20 inversion region.
+
+omy20:5446054-18985808     
+Get omy20
+(base) maccamp@farm:~/mccloud-rrt/outputs/1300$ gunzip -c ../population-genetics/318.beagle.gz | grep omy20 > omy20.beagle
+
+8768 variants     
+2915 in inversion zone     
+Number of sites after MAF filtering (0.05): 1043
+
+What does a PCA look like?   
+
+```{sh, eval=FALSE}
+srun -p high -t 1:00:00 python $HOME/pcangsd/pcangsd.py -beagle outputs/1300/omy20-inv.beagle.gz -o outputs/1300/omy20-inv -threads 10
+```
+
+
+```{r}
+meta<-read_csv("meta/318.csv")
+```
+
+Summarize Meta
+
+```{r}
+meta %>% group_by(Group, MajorGroup) %>% summarize(Count=n()) %>% select(MajorGroup, Group, Count) %>% arrange(MajorGroup)
+```
+
+### PCA
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# Some shameless copying from Eric A.
+#' @param samples character vector with the individuals IDs in the order in which
+#' they were passed in the bamlist to angsd.
+#' @param cov covariance matrix
+covar2pcs <- function(samples, cov) {
+  
+  
+  eig <- eigen(cov, symm = TRUE)
+  PC <- as.data.frame(eig$vectors) %>%
+    as_tibble() %>%
+    setNames(sprintf("PC-%02d", 1:ncol(.)))
+  
+  samtib <- tibble(sample = samples)
+  
+  list(
+    PCs = bind_cols(samtib, PC),
+    eigevalues = eig$values
+  )
+}
+```
+
+```{r, warning=FALSE, message=FALSE}
+cov<-read_delim("outputs/1300/omy20-inv.cov", col_names=FALSE, delim=" ") %>% as.matrix()
+```
+
+
+```{r}
+pca <- covar2pcs(meta$Bamlist, cov)
+
+pca_long <- pca$PCs %>%
+  tidyr::gather(., key = "PC", "val", -sample)
+
+# then expand a grid of the possible comparisons (ordered)
+expg <- expand.grid(sample = pca$PCs$sample,
+                    PCx = sprintf("PC-%02d", 1:6),
+                    PCy = sprintf("PC-%02d", 1:6),
+                    stringsAsFactors = FALSE) %>%
+  tibble::as_tibble()
+
+# then left join the pca results onto that
+pca_pairs <- dplyr::left_join(expg, pca_long, by = c("sample", "PCx" = "PC")) %>%
+  dplyr::rename(val_x = val) %>%
+  dplyr::left_join(pca_long, by = c("sample", "PCy" = "PC")) %>%
+  dplyr::rename(val_y = val)
+
+pp_meta <- pca_pairs %>%   # just keep the first 6 PCs around
+  left_join(., meta, by = c("sample" = "Bamlist"))
+
+# now, that has the first 6 PCs in it.  If we want to focus on the just the
+# first 3, we could do 
+npc <- 3
+pp_meta2 <- pp_meta %>%
+  filter( (PCx %in% sprintf("PC-%02d", 1:npc)) & 
+            (PCy %in% sprintf("PC-%02d", 1:npc)) )
+
+ggplot(pp_meta2, aes(x = val_x, y = val_y, fill = Group)) +
+  geom_point(pch = 21, size = 2) +
+  scale_fill_discrete(na.value = "white") + 
+  facet_grid(PCy ~ PCx, scales = "free")
+
+
+```
+
+
+```{r}
+
+eig <- eigen(cov, symm = TRUE)
+var<-eig$values/sum(eig$values)
+cumvar<-cumsum(eig$values)/sum(eig$values)
+
+head(var)
+head(cumvar)
+```
+
+
+
+```{r}
+sub12<-pp_meta2 %>% filter( (PCx =="PC-01") & (PCy =="PC-02") )
+
+pc12<-ggplot(sub12, aes(x = val_x, y = val_y, fill = Group, shape=MajorGroup)) +
+  geom_point(size = 2, alpha=0.75) +
+  scale_fill_discrete(na.value = "white") + 
+  theme_bw()+
+  theme(panel.grid=element_blank())+
+  xlab(paste("PC1", " ", round((100*var[1]),2), "%", sep = ""))+
+  ylab(paste("PC2", " ", round((100*var[2]),2), "%", sep = ""))+
+  scale_fill_viridis_d(option = "magma") +
+  scale_shape_manual("Major Group", values = c(21,22,22,23,24,25)) +
+  theme(legend.position = "")+
+  ggtitle("A") +
+  theme(plot.title = element_text(face="bold", size=16))
+
+sub13<-pp_meta2 %>% filter( (PCx =="PC-01") & (PCy =="PC-03") )
+
+pc13<-ggplot(sub13, aes(x = val_x, y = val_y, fill = Group, shape=MajorGroup)) +
+  geom_point(size = 2, alpha=0.75) +
+  scale_fill_discrete(na.value = "white") + 
+  theme_bw()+
+  theme(panel.grid=element_blank())+
+  xlab(paste("PC1", " ", round((100*var[1]),2), "%", sep = ""))+
+  ylab(paste("PC3", " ", round((100*var[3]),2), "%", sep = ""))+
+  scale_fill_viridis_d(option = "magma") +
+  scale_shape_manual("Major Group", values = c(21,22,22,23,24,25)) +
+  guides(fill = guide_legend(override.aes=list(shape=15, color= viridis(8, option="magma")))) +
+  ggtitle("B") +
+  theme(plot.title = element_text(face="bold", size=16))
+
+
+pcs<-ggarrange(pc12, pc13, ncol = 2, widths=c(1.1, 1.4))
+pcs
+
+ggsave("outputs/1300/omy20-pcs.pdf", width=9.5, height=4.5)
+
+```
+
+Looks inversion-y! Low frequency of one type in Coastal Rainbow Trout groups. 
+
+Can expand with Columbia sampling.
+
+```{sh, eval=FALSE}
+ srun -p high -t 48:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 12  -bam bamlists/407.single.bamlist -minInd 366 -GL 1 -ref genome/omyV6Chr.fasta -r omy20:5446054-18985808 \
+  -doGLF 2 -doMajorMinor 1 -doMaf 2 -SNP_pval 1e-6 -minMapQ 20 -minQ 20 \
+  -out outputs/1300/407-inv.single > outputs/1300/beagle.out 2> outputs/1300/beagle.err &
+  
+srun -p high -t 1:00:00 python $HOME/pcangsd/pcangsd.py -beagle outputs/1300/407-inv.single.beagle.gz -o outputs/1300/407-inv.single -threads 10
+```
+
+	-> Number of sites retained after filtering: 1166 
+  -> Number of sites after MAF filtering (0.05): 275
+
+```{r}
+meta<-read_csv("meta/combined.csv")
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+cov<-read_delim("outputs/1300/407-inv.single.cov", col_names=FALSE, delim=" ") %>% as.matrix()
+```
+
+
+```{r}
+pca <- covar2pcs(meta$Bamlist, cov)
+
+pca_long <- pca$PCs %>%
+  tidyr::gather(., key = "PC", "val", -sample)
+
+# then expand a grid of the possible comparisons (ordered)
+expg <- expand.grid(sample = pca$PCs$sample,
+                    PCx = sprintf("PC-%02d", 1:6),
+                    PCy = sprintf("PC-%02d", 1:6),
+                    stringsAsFactors = FALSE) %>%
+  tibble::as_tibble()
+
+# then left join the pca results onto that
+pca_pairs <- dplyr::left_join(expg, pca_long, by = c("sample", "PCx" = "PC")) %>%
+  dplyr::rename(val_x = val) %>%
+  dplyr::left_join(pca_long, by = c("sample", "PCy" = "PC")) %>%
+  dplyr::rename(val_y = val)
+
+pp_meta <- pca_pairs %>%   # just keep the first 6 PCs around
+  left_join(., meta, by = c("sample" = "Bamlist"))
+
+# now, that has the first 6 PCs in it.  If we want to focus on the just the
+# first 3, we could do 
+npc <- 3
+pp_meta2 <- pp_meta %>%
+  filter( (PCx %in% sprintf("PC-%02d", 1:npc)) & 
+            (PCy %in% sprintf("PC-%02d", 1:npc)) )
+
+ggplot(pp_meta2, aes(x = val_x, y = val_y, fill = Group)) +
+  geom_point(pch = 21, size = 2) +
+  scale_fill_discrete(na.value = "white") + 
+  facet_grid(PCy ~ PCx, scales = "free")
+
+
+```
+
+
+```{r}
+
+eig <- eigen(cov, symm = TRUE)
+var<-eig$values/sum(eig$values)
+cumvar<-cumsum(eig$values)/sum(eig$values)
+
+head(var)
+head(cumvar)
+```
+
+
+
+```{r}
+sub12<-pp_meta2 %>% filter( (PCx =="PC-01") & (PCy =="PC-02") )
+
+pc12<-ggplot(sub12, aes(x = val_x, y = val_y, fill = Group, shape=MajorGroup)) +
+  geom_point(size = 2, alpha=0.75) +
+  scale_fill_discrete(na.value = "white") + 
+  theme_bw()+
+  theme(panel.grid=element_blank())+
+  xlab(paste("PC1", " ", round((100*var[1]),2), "%", sep = ""))+
+  ylab(paste("PC2", " ", round((100*var[2]),2), "%", sep = ""))+
+  scale_fill_viridis_d(option = "magma") +
+  scale_shape_manual("Major Group", values = c(21,22,22,23,24,25)) +
+  theme(legend.position = "")+
+  ggtitle("A") +
+  theme(plot.title = element_text(face="bold", size=16))
+
+sub13<-pp_meta2 %>% filter( (PCx =="PC-01") & (PCy =="PC-03") )
+
+pc13<-ggplot(sub13, aes(x = val_x, y = val_y, fill = Group, shape=MajorGroup)) +
+  geom_point(size = 2, alpha=0.75) +
+  scale_fill_discrete(na.value = "white") + 
+  theme_bw()+
+  theme(panel.grid=element_blank())+
+  xlab(paste("PC1", " ", round((100*var[1]),2), "%", sep = ""))+
+  ylab(paste("PC3", " ", round((100*var[3]),2), "%", sep = ""))+
+  scale_fill_viridis_d(option = "magma") +
+  scale_shape_manual("Major Group", values = c(21,22,22,23,24,25)) +
+  guides(fill = guide_legend(override.aes=list(shape=15, color= viridis(8, option="magma")))) +
+  ggtitle("B") +
+  theme(plot.title = element_text(face="bold", size=16))
+
+
+pcs<-ggarrange(pc12, pc13, ncol = 2, widths=c(1.1, 1.4))
+pcs
+
+ggsave("outputs/1300/omy20-pcs-forward-only.pdf", width=9.5, height=4.5)
+
+```
+
+```{r}
+ggplot(sub12 %>% filter(val_x < -0.12), aes(x = val_x, y = val_y, fill = Group, shape=MajorGroup)) +
+  geom_point(size = 2, alpha=0.75) +
+  scale_fill_discrete(na.value = "white") + 
+  theme_bw()+
+  theme(panel.grid=element_blank())+
+  xlab(paste("PC1", " ", round((100*var[1]),2), "%", sep = ""))+
+  ylab(paste("PC2", " ", round((100*var[2]),2), "%", sep = ""))+
+  geom_text_repel(aes(label=Watershed), max.overlaps = Inf) +
+  scale_fill_viridis_d(option = "magma") +
+  scale_shape_manual("Major Group", values = c(21,22,22,23,24,25)) +
+  theme(legend.position = "")+
+  ggtitle("Homozygous Fish") +
+  theme(plot.title = element_text(face="bold", size=16))
+```
+
+Wow! Restricted to CRT from Coastal CA
+
+```{r}
+ggplot(sub12 %>% filter(val_x > -0.12) %>% filter(val_x < -0.04), aes(x = val_x, y = val_y, fill = Group, shape=MajorGroup)) +
+  geom_point(size = 2, alpha=0.75) +
+  scale_fill_discrete(na.value = "white") + 
+  theme_bw()+
+  theme(panel.grid=element_blank())+
+  xlab(paste("PC1", " ", round((100*var[1]),2), "%", sep = ""))+
+  ylab(paste("PC2", " ", round((100*var[2]),2), "%", sep = ""))+
+  geom_text_repel(aes(label=Watershed), max.overlaps = Inf) +
+  scale_fill_viridis_d(option = "magma") +
+  scale_shape_manual("Major Group", values = c(21,22,22,23,24,25)) +
+  theme(legend.position = "")+
+  ggtitle("Heterozygous Fish") +
+  theme(plot.title = element_text(face="bold", size=16))
+```
+
+
+Hatchery fish, hatchery influenced fish, Eagle Lake fish. 

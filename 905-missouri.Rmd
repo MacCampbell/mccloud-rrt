@@ -1,0 +1,67 @@
+---
+title: "905-missouri"
+author: "Mac Campbell"
+date: "2023-03-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(ggtree)
+```
+
+## Calling some genotypes to see what we get with a few high rollers
+Omy-167 Crane Creek
+Omy-152 Crane Creek
+Omy-215 Mill Creek
+Omy-207 Mill Creek
+
+```{sh, eval=FALSE}
+angsd -P 4 -b bamlists/testm.bamlist -minInd 36  -out outputs/905/testm-maf05p-sites -minMaf 0.05 -minMapQ 20 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 -doGeno 4 -doPost 1 -postCutoff 0.95 -doVcf 1 -rf homoblocks/non-tetrasomic-non-inversion.txt > outputs/905/testm-make-vcf.out 2> outputs/905/testm-make-vcf.err
+
+#Sort vcf
+gunzip -c outputs/905/testm-maf05p-sites.vcf.gz | awk '$1 ~ /^#/ {print $0;next} {print $0 | "sort -k1,1 -k2,2n"}' > outputs/905/testm-maf05p-sites.sort.vcf
+#Compress and overwrite
+bgzip outputs/905/testm-maf05p-sites.sort.vcf 
+#Index
+tabix outputs/905/testm-maf05p-sites.sort.vcf.gz -f
+
+#Pruned - as input for multispecies coalescent type analyses
+bcftools +prune -l 0.9 -w 30000 outputs/905/testm-maf05p-sites.sort.vcf.gz -Ov -o outputs/905/testm-maf05p-sites.sort.prune.vcf
+
+#lets reheader the bam file
+bcftools reheader --samples bamlists/testm-sample-names.txt -o outputs/905/testm-maf05p-sites.sort.prune.reheadered.vcf outputs/905/testm-maf05p-sites.sort.prune.vcf
+
+#Convert to phylip
+./vcf2phylip.py -i outputs/905/testm-maf05p-sites.sort.prune.reheadered.vcf
+
+#Correct for ascertainment bias
+source activate py3; ./103-remove-invariant.py -p outputs/905/testm-maf05p-sites.sort.prune.reheadered.min4.phy -o outputs/905/testm-maf05p-sites.sort.prune.reheadered.min4.asc.phy; conda deactivate;
+
+#Infer a proper tree, with model testing -m MFP+ASC  
+iqtree -s outputs/905/testm-maf05p-sites.sort.prune.reheadered.min4.asc.phy -st DNA -m GTR+G -bb 1000 -alrt 1000 --redo
+
+#Unpruned
+bcftools reheader --samples bamlists/testm-sample-names.txt -o outputs/905/testm-maf05p-sites.sort.reheadered.vcf.gz outputs/905/testm-maf05p-sites.sort.vcf.gz
+
+gunzip outputs/905/testm-maf05p-sites.sort.reheadered.vcf.gz
+
+./vcf2phylip.py -i outputs/905/testm-maf05p-sites.sort.reheadered.vcf
+
+source activate py3; ./103-remove-invariant.py -p outputs/905/testm-maf05p-sites.sort.reheadered.min4.phy -o outputs/905/testm-maf05p-sites.sort.reheadered.min4.asc.phy; source deactivate;
+
+iqtree -s outputs/905/testm-maf05p-sites.sort.reheadered.min4.asc.phy -st DNA -m MFP+ASC  -bb 1000 -alrt 1000 --redo
+```
+
+560 sites, need more, redoing with -minInd 41
+Alignment has 45 sequences with 2086 columns, 2086 distinct patterns -minInd 41, but our new sequences from crane/mill are 50% missing data
+
+```{r}
+angsd -P 4 -b bamlists/testm.bamlist -minInd 41  -out outputs/905/testm-maf05p-sites -minMaf 0.05 -minMapQ 20 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 -doGeno 4 -doPost 1 -postCutoff 0.95 -doVcf 1 -r omy01 > outputs/905/testm-make-vcf.out 2> outputs/905/testm-make-vcf.err
+```
+	-> Number of sites retained after filetering: 83  -minInd 43
+	-> Number of sites retained after filetering: 337 -minInd 41

@@ -68,7 +68,13 @@ ciout <- SNPs2CF(seqMatrix="outputs/900/test14-maf05p-sites.sort.prune.reheadere
 
 ```{r}
 net0<-read.tree("outputs/904/net0-rooted.newick") 
-net0<-root(net0, "LCT")
 
 ggtree(net0) + geom_tiplab() + xlim(0,5)
+```
+
+
+```{r}
+net1<-read.tree("outputs/904/n2.nwk")
+
+ggevonet(as.evonet(net1)) + geom_tiplab() + xlim(0,17) 
 ```
