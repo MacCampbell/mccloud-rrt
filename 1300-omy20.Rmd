@@ -210,9 +210,10 @@ write_tsv(hets %>% select(Path), "bamlists/hets318.bamlist", col_names = FALSE)
 Call genos....
 
 ```{sh, eval=FALSE}
-srun -p high -t 1:00:00 angsd -P 4 -b bamlists/hets318-edited.bamlist -minInd 51  -out outputs/1300/hets-omy20 -minMaf 0.05 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 -doGeno 4 -doPost 1 -postCutoff 0.95 -doPlink 2 -r omy20 > outputs/1300/hets.stdout 2> outputs/1300/hets.stderr &
+srun -p high -t 1:00:00 angsd -P 8 -b bamlists/hets318-edited.bamlist -minInd 43  -out outputs/1300/hets-omy20 -minMaf 0.05 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 -doGeno 4 -doPost 1 -postCutoff 0.95 -doPlink 2 -r omy20 > outputs/1300/hets.stdout 2> outputs/1300/hets.stderr &
 
 #calc ld, 830 sites (338 in inversion). Relaxing to 2045 sites
+#Expanding to some homes/hets, 24 hets, five homs? 207 sites, relaxed to 779
 plink --tfam  outputs/1300/hets-omy20.tfam  --tped outputs/1300/hets-omy20.tped --r2 inter-chr --ld-window-r2 0.1 --chr omy20 --out outputs/1300/troutomy20-ld --noweb --allow-extra-chr --double-id
 ```
 
@@ -226,7 +227,7 @@ ggsave("outputs/1300/hets-troutomy20-histo.pdf")
 
 ```
 ```{r}
-filtered<-ld %>% filter(R2>=0.8) %>% arrange(R2)
+filtered<-ld %>% filter(R2>=0.7) %>% arrange(R2)
 
 ggplot(filtered, aes(x=BP_A, y=BP_B, color=R2)) +
   geom_point()+
