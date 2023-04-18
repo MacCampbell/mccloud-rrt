@@ -1,0 +1,131 @@
+---
+title: "1301-omy20-phylo"
+output: html_document
+date: "2023-04-07"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+
+Let's make a phylogeny of our omy20. I expect 8 copies of the ancestral type in 48 samples, so a minMaf of 8/96 = 0.083. mimMaf5 should work
+
+```{sh, eval=FALSE}
+
+angsd -P 4 -b bamlists/test4.bamlist -minInd 43  -out outputs/1301/test4-omy20 -minMaf 0.05 -minMapQ 20 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 -doGeno 4 -doPost 1 -postCutoff 0.95 -doVcf 1 -r omy20:5446054-18985808
+```
+
+	-> Number of sites retained after filetering: 480 
+
+Seems fine.  
+
+```{sh, eval=FALSE}
+gunzip -c outputs/1301/test4-omy20.geno.gz     
+cat outputs/1301/test4-omy20.geno | perl -pe 's/omy20\t//g' > outputs/1301/test.geno
+
+  ./105-omy05-haplotyper.pl omy20/omy20-diagnostic.txt outputs/1301/test.geno bamlists/test4.bamlist > outputs/1301/test4-genos.txt
+
+```    
+
+
+Have this set up.  Next, to phase. 
+
+```{sh, eval=false}
+vcftools --gzvcf outputs/1301/test4-omy20.vcf.gz --min-alleles 2 --max-alleles 2 --max-missing 0.1 --maf 0.05 --out outputs/1301/filtered --recode 
+```
+
+After filtering, kept 402 out of a possible 480 Sites
+
+Reheader
+
+```{sh, eval=FALSE}
+bcftools reheader --samples bamlists/test4-sample-names.txt -o outputs/1301/test4.recode.renamed.vcf outputs/1301/filtered.recode.vcf
+```
+
+Impute?    
+
+Phase    
+
+```{sh, eval=FALSE}
+java -jar ~/bin/beagle.27Jan18.7e1.jar gt=outputs/1301/test4.recode.renamed.vcf out=outputs/1301/beagle-phased ibd=true ibdcm=0.05 > outputs/1301/beagle-phase-stdout.txt 
+```
+
+./vcf2phylip.py -i outputs/1301/beagle-phased.vcf.gz 
+PCT_PPP1_01
+
+ bcftools consensus -H 1 -f genome/omyV6Chr.fasta  -s PCT_PPP1_01 outputs/1301/beagle-phased.vcf.gz  
+ 
+ gets us the whole fasta seq 
+ 
+ plink --vcf outputs/1301/beagle-phased.vcf.gz  --export haps --out outputs/1301/phased
+
+bcftools convert --hapsample --vcf-ids outputs/1301/beagle-phased.vcf.gz  -o outputs/1301/phased
+
+Convert to single seqs
+
+(base) Macs-MacBook-Pro-2:1301 mac$ ./make-haps.pl phased.haps | ./transpose.pl > seqs.txt
+
+https://davetang.org/muse/2014/09/09/transpose-tool/    
+
+Did some editing, samples.phy
+```{sh}
+iqtree -s outputs/1301/beagle-phased.min4.phy -st DNA -m MFP+ASC -bb 1000 -alrt 1000
+iqtree -s outputs/1301/beagle-phased.min4.phy.varsites.phy -st DNA -m MFP+ASC -bb 1000 -alrt 1000
+
+iqtree -s outputs/1301/samples.phy -st DNA -m MFP+ASC -bb 1000 -alrt 1000 --redo
+
+```
+
+Imputation version 
+
+java -jar ~/bin/beagle.27Jan18.7e1.jar gl=outputs/1301/test4.recode.renamed.vcf out=outputs/1301/beagle-imputed > outputs/1301/beagle-impute-stdout.txt 
+
+402 sites kept when filtering, so no big diff here.  Need to try a bigger missing data threshold earlier. 
+
+```{sh, eval=FALSE}
+vcftools --gzvcf outputs/1301/test4-omy20.vcf.gz --min-alleles 2 --max-alleles 2 --max-missing 0.2 --maf 0.05 --out outputs/1301/filtered-light --recode 
+
+```
+
+values .2 to .4 keep 402/480 sites at -max-missing. 
+
+Create a phylogeny of non-inversion SNPs and a co-phylogram
+
+```{sh, eval=FALSE}
+angsd -P 4 -b bamlists/test4.bamlist -minInd 43  -out outputs/1301/test4 -minMaf 0.05 -minMapQ 20 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 -doGeno 4 -doPost 1 -postCutoff 0.95 -doVcf 1 -rf homoblocks/non-inversion.txt 
+
+#omy05
+angsd -P 4 -b bamlists/test4.bamlist -minInd 43  -out outputs/1301/test4-omy05 -minMaf 0.05 -minMapQ 20 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 -doGeno 4 -doPost 1 -postCutoff 0.95 -doVcf 1 -r omy05:27001896-81791946
+
+vcftools --gzvcf outputs/1301/test4-omy05.vcf.gz --min-alleles 2 --max-alleles 2 --max-missing 0.1 --maf 0.05 --out outputs/1301/omy05-filtered --recode 
+
+#After filtering, kept 1886 out of a possible 2300 Sites
+
+bcftools reheader --samples bamlists/test4-sample-names.txt -o outputs/1301/omy05.recode.renamed.vcf outputs/1301/omy05-filtered.recode.vcf
+
+java -jar ~/bin/beagle.27Jan18.7e1.jar gl=outputs/1301/omy05-filtered.recode.vcf out=outputs/1301/omy05-beagle-imputed > outputs/1301/beagle-impute-stdout.txt 
+
+
+java -jar ~/bin/beagle.27Jan18.7e1.jar gt=outputs/1301/omy05-beagle-imputed.vcf.gz out=outputs/1301/omy05-beagle-phased ibd=true ibdcm=0.05 > outputs/1301/omy05-beagle-phase-stdout.txt 
+
+bcftools convert --hapsample --vcf-ids outputs/1301/omy05-beagle-phased.vcf.gz  -o outputs/1301/omy05-phased
+
+#in 1301
+gunzip omy05-phased.hap.gz
+./make-haps.pl omy05-phased.hap | ./transpose.pl > omy05-seqs.txt
+ paste haplotype-list.txt omy05-seqs.txt  > omy05.phy
+ 
+iqtree -s outputs/1301/omy05.phy -st DNA -m MFP+ASC -bb 1000 -alrt 1000
+
+
+```
+
+1886 SNPS
+
+
+``` 

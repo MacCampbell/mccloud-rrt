@@ -1,0 +1,110 @@
+---
+title: "1302-omy20-vcf"
+output: html_document
+date: "2023-04-18"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+
+We have a whole vcf of 61 fish from the genome project. Can I pull out the region of interest and determine their genotypes?
+
+Arlee should have the derived form.
+
+What do ld calcs look like there?
+module load bcftools
+
+bcftools view -r omy20 -q 0.05:minor vcf/omy_61fish_Q30_snpEff_DHnumHetzLT5.vcf.gz  > omy20.vcf
+bcftools view -r omy20:
+
+srun -p bmh -t 1:00:00 plink --vcf omy20.vcf --r2 inter-chr --ld-window-r2 .3 --chr omy20 --out ld-omy20 --noweb --allow-extra-chr --double-id
+
+533397 variants and an error. 
+
+Filtering some more
+
+vcftools --vcf omy20.vcf --min-alleles 2 --max-alleles 2 --max-missing 0.9 --maf 0.05 --out omy20-filtered --recode 
+
+After filtering, kept 464000 out of a possible 533397 Sites
+bgzip omy20-filtered.recode.vcf 
+tabix omy20-filtered.recode.vcf.gz
+
+bcftools view -r omy20:5446055-18985808  omy20-filtered.recode.vcf.gz > omy20-inversion.vcf
+bgzip omy20-inversion.vcf 
+
+147191 variants
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message = FALSE)
+library(tidyverse)
+library(adegenet)
+library(vcfR)
+library(ggrepel)
+```
+
+## Import data and create PCA
+
+```{r, eval=FALSE}
+vcf<-read.vcfR(file="outputs/1302/omy20-inversion.vcf.gz")
+genind<-vcfR2genind(vcf)
+save(genind, file="outputs/1302/omy20-genind.rda")
+X <- tab(genind, NA.method="mean")
+pca1 <- dudi.pca(X,scannf=FALSE,scale=FALSE)
+save(pca1, file="outputs/1302/omy20-pca.rda")
+```
+` bcftools query -l omy20-inversion.vcf.gz  > sample-names.txt` 
+```{r}
+load("outputs/1302/omy20-pca.rda")
+names<-read_tsv("outputs/1302/sample-names.txt", col_names = c("Sample"))
+df<-as_data_frame(pca1$li)
+df$Sample<-names$Sample
+```
+
+```{r}
+ggplot(df, aes(x=Axis1, y=Axis2)) +
+  geom_point() +
+#  geom_text_repel(aes(label=Sample), max.overlaps = Inf) +
+  theme_bw()
+```
+
+We have the Arlee fish to pull;
+
+Looks like three homozygotes for the ancestral state: 3801, M075219, WRAG1
+
+M075219	Coastal CA	Big Creek	ancestral	AA
+3801 AguaGen
+WRAG1 
+
+We can run orthofinder ourselves on proteomes.... Or get from salmobase   
+
+Installed orthofinder myself.....
+
+Running ExampleData, now
+
+(base) maccamp@farm:~/omy20$ srun -p med -t 5-00:00:00 ~/OrthoFinder/orthofinder -f proteins/
+
+
+Hi Andrew
+
+It's attempting to run them and they are returning an error code, it doesn't attempt to rerun them. If a small subset are failing with this error message then the most efficient solution for continuing would be to complete these failing diamond runs manually, and then restart orthofinder once the diamond runs are all complete using:
+
+orthofinder -b /home/aswafford_umass_edu/All_Fastas/OrthoFinder/Results_Sep01_1 + ANY_EXTRA_OPTIONS
+All the best
+David
+
+ -b  <dir>         Start OrthoFinder from pre-computed BLAST results in <dir>
+
+Ack, noticed isoforms
+
+for f in *fa ; do python ~/OrthoFinder/tools/primary_transcript.py $f ; done
+for f in *faa ; do python ~/OrthoFinder/tools/primary_transcript.py $f ; done
+
+mv proteins/primary_transcripts/ .
+
+ srun -p med -t 5-00:00:00 ~/OrthoFinder/orthofinder -f primary_transcripts >ortho.out 2>ortho.err
