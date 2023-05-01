@@ -69,8 +69,10 @@ df$Sample<-names$Sample
 ```{r}
 ggplot(df, aes(x=Axis1, y=Axis2)) +
   geom_point() +
-#  geom_text_repel(aes(label=Sample), max.overlaps = Inf) +
+  geom_text_repel(aes(label=Sample), alpha=0.5, max.overlaps = Inf) +
   theme_bw()
+
+ggsave("outputs/1302/pca-vcf.jpg")
 ```
 
 We have the Arlee fish to pull;
@@ -108,3 +110,274 @@ for f in *faa ; do python ~/OrthoFinder/tools/primary_transcript.py $f ; done
 mv proteins/primary_transcripts/ .
 
  srun -p med -t 5-00:00:00 ~/OrthoFinder/orthofinder -f primary_transcripts >ortho.out 2>ortho.err
+
+Not a lot of ... 
+
+srun -p bigmemm --mem=200G -t 10:00:00 ~/OrthoFinder/orthofinder -f test 
+
+(base) maccamp@farm:~/omy20$ conda create -n py3.10 python=3.10
+
+Getting Umbra
+
+https://github.com/tseemann/any2fasta?
+
+## Trying with more memory
+(base) maccamp@farm:~/omy20$ srun -p bigmemm --mem=200GB -t 10:00:00 orthofinder -f test 
+
+runs 64 threads.  Need to reduce threading in orthofinder
+
+ srun -p bigmemm --mem=200GB -t 10:00:00 ../OrthoFinder/orthofinder -f test -t 6 -a 6
+
+getting failed commands and running again
+cat test.out  | grep "diamond blastp" | perl -pe 's/Command: //g' > diamond-commands.txt
+module load diamond
+module load parallel
+
+maccamp@farm:~/omy20$ srun -p high -t 10:00:00 --ntasks=8 parallel -j 8 < diamond-commands.txt 
+
+(base) maccamp@farm:~/omy20$ srun -p high -t 10:00:00 --ntasks=8 --cpus-per-task=1 --mem-per-cpu=50G parallel -j 8 < diamond-commands.txt
+it says no!
+
+worked previously
+srun -p med -t 12:00:00 --nodes=1 --mem=16G diamond blastx -d ../probes -q SRR17216319.fastq.gz \
+  -o combined-diamond-probes.tsv > probes.stdout 2> probes.stderr &
+
+srun -p med -t 20:00:00 --nodes=1 --mem=50G diamond blastp -d /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/diamondDBSpecies3 -q /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Species0.fa -o /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Blast0_3.txt --more-sensitive -p 1 --quiet -e 0.001 --compress 1
+ 
+ See if that works!! it did it did!!
+ 
+srun -p med -t 20:00:00 --nodes=1 --mem=50G diamond blastp -d /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/diamondDBSpecies3 -q /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Species2.fa -o /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Blast2_3.txt --more-sensitive -p 1 --quiet -e 0.001 --compress 1 &
+srun -p med -t 20:00:00 --nodes=1 --mem=50G diamond blastp -d /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/diamondDBSpecies1 -q /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Species3.fa -o /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Blast3_1.txt --more-sensitive -p 1 --quiet -e 0.001 --compress 1 &
+srun -p med -t 20:00:00 --nodes=1 --mem=50G diamond blastp -d /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/diamondDBSpecies1 -q /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Species0.fa -o /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Blast0_1.txt --more-sensitive -p 1 --quiet -e 0.001 --compress 1 &
+srun -p med -t 20:00:00 --nodes=1 --mem=50G diamond blastp -d /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/diamondDBSpecies0 -q /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Species3.fa -o /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Blast3_0.txt --more-sensitive -p 1 --quiet -e 0.001 --compress 1 &
+srun -p med -t 20:00:00 --nodes=1 --mem=50G diamond blastp -d /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/diamondDBSpecies0 -q /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Species0.fa -o /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Blast0_0.txt --more-sensitive -p 1 --quiet -e 0.001 --compress 1 &
+srun -p med -t 20:00:00 --nodes=1 --mem=50G diamond blastp -d /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/diamondDBSpecies1 -q /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Species1.fa -o /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Blast1_1.txt --more-sensitive -p 1 --quiet -e 0.001 --compress 1 &
+srun -p med -t 20:00:00 --nodes=1 --mem=50G diamond blastp -d /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/diamondDBSpecies2 -q /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Species3.fa -o /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Blast3_2.txt --more-sensitive -p 1 --quiet -e 0.001 --compress 1 &
+srun -p med -t 20:00:00 --nodes=1 --mem=50G diamond blastp -d /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/diamondDBSpecies2 -q /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Species1.fa -o /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Blast1_2.txt --more-sensitive -p 1 --quiet -e 0.001 --compress 1 &
+srun -p med -t 20:00:00 --nodes=1 --mem=50G diamond blastp -d /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/diamondDBSpecies3 -q /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Species3.fa -o /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Blast3_3.txt --more-sensitive -p 1 --quiet -e 0.001 --compress 1 &
+srun -p med -t 20:00:00 --nodes=1 --mem=50G diamond blastp -d /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/diamondDBSpecies1 -q /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Species2.fa -o /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Blast2_1.txt --more-sensitive -p 1 --quiet -e 0.001 --compress 1 &
+srun -p med -t 20:00:00 --nodes=1 --mem=50G diamond blastp -d /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/diamondDBSpecies0 -q /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Species2.fa -o /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Blast2_0.txt --more-sensitive -p 1 --quiet -e 0.001 --compress 1 &
+srun -p med -t 20:00:00 --nodes=1 --mem=50G diamond blastp -d /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/diamondDBSpecies2 -q /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Species0.fa -o /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Blast0_2.txt --more-sensitive -p 1 --quiet -e 0.001 --compress 1 &
+srun -p med -t 20:00:00 --nodes=1 --mem=50G diamond blastp -d /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/diamondDBSpecies3 -q /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Species1.fa -o /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Blast1_3.txt --more-sensitive -p 1 --quiet -e 0.001 --compress 1 &
+srun -p med -t 20:00:00 --nodes=1 --mem=50G diamond blastp -d /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/diamondDBSpecies0 -q /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Species1.fa -o /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Blast1_0.txt --more-sensitive -p 1 --quiet -e 0.001 --compress 1 &
+srun -p med -t 20:00:00 --nodes=1 --mem=50G diamond blastp -d /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/diamondDBSpecies2 -q /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Species2.fa -o /home/maccamp/omy20/test/OrthoFinder/Results_Apr27_2/WorkingDirectory/Blast2_2.txt --more-sensitive -p 1 --quiet -e 0.001 --compress 1 &
+
+If these work: 
+
+(base) maccamp@farm:~/omy20$ srun -p med -t 24:00:00 orthofinder -t 6 -a 6  -b test/OrthoFinder/Results_Apr27_2 
+
+
+#### primary_transcripts/
+
+Can I make primary transcripts from both types or RBT?
+
+-rw-rw-r-- 1 maccamp 28M Apr 18 14:48 GCF_002021735.2_Okis_V2_protein.faa
+-rw-rw-r-- 1 maccamp 27M Apr 18 14:48 GCF_002163495.1_Omyk_1.0_protein.faa
+-rw-rw-r-- 1 maccamp 23M Apr 18 14:48 GCF_002910315.2_ASM291031v2_protein.faa
+-rw-rw-r-- 1 maccamp 23M Apr 18 14:48 GCF_006149115.2_Oner_1.1_protein.faa
+-rw-rw-r-- 1 maccamp 18M Apr 18 14:55 GCF_011004845.1_fEsoLuc1.pri_protein.faa
+-rw-rw-r-- 1 maccamp 25M Apr 18 14:48 GCF_016432855.1_SaNama_1.0_protein.faa
+-rw-rw-r-- 1 maccamp 28M Apr 18 14:48 GCF_020615455.1_ASM2061545v1_protein.faa
+-rw-rw-r-- 1 maccamp 27M Apr 18 14:48 GCF_901001165.1_fSalTru1.1_protein.faa
+-rw-rw-r-- 1 maccamp 29M Apr 18 14:48 GCF_905237065.1_Ssal_v3.1_protein.faa
+drwxrwsr-x 3 maccamp   3 Apr 18 14:50 OrthoFinder/
+-rw-rw-r-- 1 maccamp 27M Apr 18 14:47 Species17.fa
+-rw-rw-r-- 1 maccamp 13M Apr 18 14:47 Species18.fa
+
+let's use
+GCF_002021735.2_Okis_V2_protein.faa
+GCF_016432855.1_SaNama_1.0_protein.faa
+GCF_905237065.1_Ssal_v3.1_protein.faa
+GCF_020615455.1_ASM2061545v1_protein.faa C. clupeaformis
+GCF_011004845.1_fEsoLuc1.pri_protein.faa
+Species17.fa T. thymallus (rename)
+Species18.fa U. pygmaea (rename)
+
+Converting my rbt dat to seqs
+
+
+get Gene.209752::CIGENEomyV6.48254.1::g.209752::m.209752.fas and append to seq names if possible.
+
+Ok, I can use -d: Input is DNA sequences
+
+
+## Create cds from our genes of interest
+We have the omy20 fish. Let's get M075219 and Arlee from the vcf:
+
+
+srun -p high -t 01:00:00 bcftools view -s Arlee,M075219 -r omy20:5446055-18985808 vcf/omy_61fish_Q30_snpEff_DHnumHetzLT5.vcf.gz > sub/sub.vcf
+(base) maccamp@farm:~/omy20$ bgzip sub/sub.vcf 
+(base) maccamp@farm:~/omy20$ tabix sub/sub.vcf.gz 
+
+pip3 install pysam art
+
+Says no to GFF
+ srun -p high -t 01:00:00  ~/vcf2fasta/vcf2fasta.py --fasta ~/genomes/mykiss/refseq-unzipped/GCF_002163495.1_Omyk_1.0_genomic.fna --vcf sub/sub.vcf --gff ~/genomes/mykiss/refseq/GCF_002163495.1_Omyk_1.0_genomic.gff --feat CDS --out sub
+
+Reads in GTF 
+srun -p high -t 01:00:00  ~/vcf2fasta/vcf2fasta.py --fasta ~/genomes/mykiss/refseq-unzipped/GCF_002163495.1_Omyk_1.0_genomic.fna --vcf sub/sub.vcf --gff ~/genomes/mykiss/refseq/GCF_002163495.1_Omyk_1.0_genomic.gtf --feat CDS --out sub
+
+ gff file I have for omyV6 seems to not work 
+ 
+ KeyError: 'ORF'
+srun -p high -t 01:00:00  ~/vcf2fasta/vcf2fasta.py --fasta ~/mccloud-rrt/genome/omyV6Chr.fasta --vcf sub/sub.vcf.gz --gff  ~/mccloud-rrt/genome/CIGENEomyV6-genes-longestTranscripts.gff3  --feat CDS --out sub
+
+grep -v "ORF" ~/mccloud-rrt/genome/CIGENEomyV6-genes-longestTranscripts.gff3 > no-orf.gff3
+
+srun -p high -t 01:00:00  ~/vcf2fasta/vcf2fasta.py --fasta ~/mccloud-rrt/genome/omyV6Chr.fasta --vcf sub/sub.vcf.gz --gff  ~/mccloud-rrt/genome/no-orf.gff3  --feat CDS --out sub
+
+Nope!
+
+
+(base) maccamp@farm:~/omy20$ module load cufflinks/ 
+Loading cufflinks/2.2.1
+(base) maccamp@farm:~/omy20$ gffread ~/mccloud-rrt/genome/CIGENEomyV6-genes-longestTranscripts.gff3 -T -o omyV6.gtf
+
+looks to write ALL the genes in the organism, adding --blend --skip to combine features and skip those without variants
+
+srun -p high -t 01:00:00  ~/vcf2fasta/vcf2fasta.py --fasta ~/mccloud-rrt/genome/omyV6Chr.fasta --vcf sub/sub.vcf.gz --gff  omyV6.gtf  --feat CDS --blend --skip --out omy20-cds
+
+Writes 21 genes and dies, expect ~ 310
+(base) maccamp@farm:~/omy20$ grep omy20 omyV6.gtf  | awk '{ if ($4 > 5446055 && $5 <18985808) { print } }' > omy20-inversion.gtf
+
+srun -p high -t 01:00:00  ~/vcf2fasta/vcf2fasta.py --fasta ~/mccloud-rrt/genome/omyV6Chr.fasta --vcf sub/sub.vcf.gz --gff  omy20-inversion.gtf --feat CDS --blend --skip --out inversion
+
+may be overlap in position? 
+base) maccamp@farm:~/omy20$ grep  Gene.281151 omy20-inversion.gtf 
+omy20	transdecoder	exon	6160227	6160739	.	+	.	transcript_id "Gene.281151::CIGENEomyV6.66822.1::g.281151::m.281151"; gene_id "CIGENEomyV6.66822"; gene_name "ORF";
+omy20	transdecoder	CDS	6160227	6160739	.	+	0	transcript_id "Gene.281151::CIGENEomyV6.66822.1::g.281151::m.281151"; gene_id "CIGENEomyV6.66822"; gene_name "ORF";
+(base) maccamp@farm:~/omy20$ grep  CIGENEomyV6.66823 omy20-inversion.gtf 
+omy20	transdecoder	exon	6167039	6167264	.	+	.	transcript_id "Gene.277915::CIGENEomyV6.66823.1::g.277915::m.277915"; gene_id "CIGENEomyV6.66823"; gene_name "ORF";
+omy20	transdecoder	exon	6167525	6167913	.	+	.	transcript_id "Gene.277915::CIGENEomyV6.66823.1::g.277915::m.277915"; gene_id "CIGENEomyV6.66823"; gene_name "ORF";
+omy20	transdecoder	CDS	6167039	6167264	.	+	0	transcript_id "Gene.277915::CIGENEomyV6.66823.1::g.277915::m.277915"; gene_id "CIGENEomyV6.66823"; gene_name "ORF";
+omy20	transdecoder	CDS	6167525	6167913	.	+	2	transcript_id "Gene.277915::CIGENEomyV6.66823.1::g.277915::m.277915"; gene_id "CIGENEomyV6.66823"; gene_name "ORF";
+
+ grep -v CIGENEomyV6.66823 omy20-inversion.gtf  > one.gtf
+ 
+ srun -p high -t 01:00:00  ~/vcf2fasta/vcf2fasta.py --fasta ~/mccloud-rrt/genome/omyV6Chr.fasta --vcf sub/sub.vcf.gz --gff one.gtf --feat CDS --blend --skip --out one
+ 
+ wrote 20 genes and died
+ 
+ grep -v CIGENEomyV6.66824 omy20-inversion.gtf  > two.gtf
+ 
+ dies
+ 
+ is there something wrong with the vcf?
+ (base) maccamp@farm:~/omy20/sub$ gunzip -c sub.vcf.gz |  awk '{ if ($2 > 6160200 && $2 <6160500) { print } }'
+
+gunzip -c sub.vcf.gz |  awk '{ if ($2 > 6160200 && $2 <6161000) { print } }' | wc -l
+
+only 13 genes in this region 
+ 
+
+
+(base) maccamp@farm:~/omy20/sub$ bcftools view -r omy20:6178200- sub.vcf.gz > two.vcf
+(base) maccamp@farm:~/omy20/sub$ bgzip two.vcf 
+(base) maccamp@farm:~/omy20/sub$ tabix two.vcf.gz 
+
+   
+ srun -p high -t 01:00:00  ~/vcf2fasta/vcf2fasta.py --fasta ~/mccloud-rrt/genome/omyV6Chr.fasta --vcf sub/two.vcf.gz --gff omy20-inversion.gtf --feat CDS --blend --skip --out two
+ 
+  cat omy20-inversion.gtf | awk '{ if ($4 > 6178200) { print } }' > three.gtf
+  
+  srun -p high -t 01:00:00  ~/vcf2fasta/vcf2fasta.py --fasta ~/mccloud-rrt/genome/omyV6Chr.fasta --vcf sub/two.vcf.gz --gff three.gtf --feat CDS --blend --skip --out three
+  
+  Nope!! Skipping a few genes in the gff and the vcf doesn't seem to wkr 
+  
+  bcftools view -r omy20:7000000- sub.vcf.gz > seven.vcf
+  bgzip seven.vcf
+  tabix seven.vcf
+  
+  cat omy20-inversion.gtf | awk '{ if ($4 > 7000000) { print } }' > seven.gtf
+  
+  srun -p high -t 01:00:00  ~/vcf2fasta/vcf2fasta.py --fasta ~/mccloud-rrt/genome/omyV6Chr.fasta --vcf sub/seven.vcf.gz --gff seven.gtf --feat CDS --blend --skip --out seven
+  
+  no prints some genes and dies
+  
+  srun -p high -t 01:00:00  ~/vcf2fasta/vcf2fasta.py --fasta ~/mccloud-rrt/genome/omyV6Chr.fasta --vcf sub/seven.vcf.gz --gff omyV6.gtf --feat CDS --blend --skip --out seven
+  
+prints 16 genes and dies.
+
+bcftools view -r omy20:8000000- sub.vcf.gz > eight.vcf
+etc.
+srun -p high -t 01:00:00  ~/vcf2fasta/vcf2fasta.py --fasta ~/mccloud-rrt/genome/omyV6Chr.fasta --vcf sub/eight.vcf.gz --gff omyV6.gtf --feat CDS --blend --skip --out eight
+
+prints 81 genes and dies.
+
+
+ok, so there is some dumb problem with the vcf file.
+
+Filter VCF? 
+Total number of genes found: 46890
+ [++++++++++++++++++++++++++++++++++++++++++++++++...............Traceback (most recent call last):
+  File "/home/maccamp/vcf2fasta/vcf2fasta.py", line 515, in <module>
+    main()
+  File "/home/maccamp/vcf2fasta/vcf2fasta.py", line 139, in main
+    sequences,varsites,codon_start,strand = getSequences(gff, gene, args.feat, args.blend, args.inframe, ref, vcf, ploidy, phased, samples, args.addref)
+  File "/home/maccamp/vcf2fasta/vcf2fasta.py", line 212, in getSequences
+    alleles,max_len = getAlleles(rec, ploidy, phased, addref)
+  File "/home/maccamp/vcf2fasta/vcf2fasta.py", line 250, in getAlleles
+    max_len = max([ len(i) for i in segregating if i is not None ])
+ValueError: max() arg is an empty sequence
+ [++++++++++++++++++++++++++++++++++++++++++++++++......................] 69.68%   21.60 ssrun: error: cpu-8-96: task 0: Exited with exit code 1
+
+remove all missing sites?
+bcftools view -e 'GT[*] = "mis"' sub.vcf.gz > missing.vcf
+srun -p high -t 01:00:00  ~/vcf2fasta/vcf2fasta.py --fasta ~/mccloud-rrt/genome/omyV6Chr.fasta --vcf sub/missing.vcf.gz --gff omy20-inversion.gtf --feat CDS --blend --skip --out missing
+
+Reading GFF file [omy20-inversion.gtf] ... done
+Reading VCF file [sub/missing.vcf.gz] ... done
+Reading FASTA reference file [/home/maccamp/mccloud-rrt/genome/omyV6Chr.fasta] ... done
+Ploidy is: 2
+No phased genotypes found on first variant. Treating as "unphased"
+Concatenating all [ CDS ]
+Setting output directory to: missing_CDS
+Total number of genes found: 310
+ [++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++] 100.00%    5.28 s
+Skipped 12 genes with no variants
+
+
+WHOOOOOO
+
+
+To get alignments, maybe I shout generate genes from both fish, run orthofinder,
+
+M075219 is AA for omy05 and AA for omy20
+M075289 is RR for omy05 and RR for omy20
+
+bcftools view -s M075219,M075289 -e 'GT[*] = "mis"' vcf/omy_61fish_Q30_snpEff_DHnumHetzLT5.vcf.gz > sub/bigcreek.vcf
+bgzip sub/bigcreek.vcf
+tabix sub/hibcreek.vcf.gz
+
+srun -p high -t 02:00:00  ~/vcf2fasta/vcf2fasta.py --fasta ~/mccloud-rrt/genome/omyV6Chr.fasta --vcf sub/bigcreek.vcf.gz --gff omyV6.gtf --feat CDS --blend --skip --out bigcreek
+
+Total number of genes found: 46890
+ [++++++++++++++++++++++++++++++++++++++++++++++++++++++Traceback (most recent call last):
+  File "/home/maccamp/vcf2fasta/vcf2fasta.py", line 515, in <module>
+    main()
+  File "/home/maccamp/vcf2fasta/vcf2fasta.py", line 139, in main
+    sequences,varsites,codon_start,strand = getSequences(gff, gene, args.feat, args.blend, args.inframe, ref, vcf, ploidy, phased, samples, args.addref)
+  File "/home/maccamp/vcf2fasta/vcf2fasta.py", line 200, in getSequences
+    refseq = ref.fetch(chrom, start, end).upper()
+  File "pysam/libcfaidx.pyx", line 301, in pysam.libcfaidx.FastaFile.fetch
+KeyError: "sequence 'scaffold10021_0-33491_unkn' not present"
+ [+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++.......] 90.56%  463.67 ssrun: error: cpu-10-76: task 0: Exited with exit code 1
+
+makes it through all the chroms... 
+
+(base) maccamp@farm:~/omy20$ grep -v "scaffold" omyV6.gtf > omyV6-chroms.gtf
+(base) maccamp@farm:~/omy20$ wc -l omyV6.gtf 
+682450 omyV6.gtf
+(base) maccamp@farm:~/omy20$ wc -l omyV6-chroms.gtf 
+660281 omyV6-chroms.gtf
+
+srun -p high -t 02:00:00  ~/vcf2fasta/vcf2fasta.py --fasta ~/mccloud-rrt/genome/omyV6Chr.fasta --vcf sub/bigcreek.vcf.gz --gff omyV6-chroms.gtf --feat CDS --blend --skip --out bigcreek-chroms
+
+Total number of genes found: 42464
+ [++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++] 100.00%  607.38 s
+Skipped 4615 genes with no variants
+
+maybe shouldn't skip? 37849 genes   
+
+srun -p high -t 02:00:00  ~/vcf2fasta/vcf2fasta.py --fasta ~/mccloud-rrt/genome/omyV6Chr.fasta --vcf sub/bigcreek.vcf.gz --gff omyV6-chroms.gtf --feat CDS --blend --skip --out bigcreek-no-skip-chroms
+

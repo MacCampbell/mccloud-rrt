@@ -214,6 +214,7 @@ srun -p high -t 1:00:00 angsd -P 8 -b bamlists/hets318-edited.bamlist -minInd 43
 
 #calc ld, 830 sites (338 in inversion). Relaxing to 2045 sites
 #Expanding to some homes/hets, 24 hets, five homs? 207 sites, relaxed to 779
+#Reducing ancestral homs, 48 samples. 855sites
 plink --tfam  outputs/1300/hets-omy20.tfam  --tped outputs/1300/hets-omy20.tped --r2 inter-chr --ld-window-r2 0.1 --chr omy20 --out outputs/1300/troutomy20-ld --noweb --allow-extra-chr --double-id
 ```
 
@@ -229,12 +230,12 @@ ggsave("outputs/1300/hets-troutomy20-histo.pdf")
 ```{r}
 filtered<-ld %>% filter(R2>=0.7) %>% arrange(R2)
 
-ggplot(filtered, aes(x=BP_A, y=BP_B, color=R2)) +
+ggplot(filtered, aes(x=BP_A, y=BP_B, color=R2), alpha=0.5) +
   geom_point()+
-  scale_color_gradient(low="gray",high="red")+
+  scale_color_gradient(low="white",high="red")+
   theme_bw()
 
-ggsave("outputs/1300/hets-troutomy20-ld.pdf")
+ggsave("outputs/1300/hets-troutomy20-ld.jpeg")
 ```
 
 ## Can expand with Columbia sampling.
@@ -363,6 +364,9 @@ ggplot(sub12 %>% filter(val_x < -0.12), aes(x = val_x, y = val_y, fill = Group, 
   theme(legend.position = "")+
   ggtitle("Homozygous Fish") +
   theme(plot.title = element_text(face="bold", size=16))
+
+
+ggsave("outputs/1300/omy20-pcs-forward-only-homs.jpeg")
 ```
 
 Wow! Restricted to CRT from Coastal CA
@@ -381,6 +385,9 @@ ggplot(sub12 %>% filter(val_x > -0.12) %>% filter(val_x < -0.04), aes(x = val_x,
   theme(legend.position = "")+
   ggtitle("Heterozygous Fish") +
   theme(plot.title = element_text(face="bold", size=16))
+
+ggsave("outputs/1300/omy20-pcs-forward-only-hets.jpeg")
+
 ```
 
 

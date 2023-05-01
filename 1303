@@ -1,0 +1,83 @@
+Looks like I need to download genomes and creat my own cdna files then I can use those with OrthoFinder
+
+let's use
+GCF_002021735.2_Okis_V2_protein.faa
+GCF_016432855.1_SaNama_1.0_protein.faa
+GCF_905237065.1_Ssal_v3.1_protein.faa
+GCF_020615455.1_ASM2061545v1_protein.faa C. clupeaformis
+GCF_011004845.1_fEsoLuc1.pri_protein.faa
+ T. thymallus (rename)
+ pygmaea (rename)
+
+cor-clup
+wget https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/020/615/455/GCF_020615455.1_ASM2061545v1/GCF_020615455.1_ASM2061545v1_rna.fna.gz
+
+
+e-luc
+wget https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/011/004/845/GCF_011004845.1_fEsoLuc1.pri/GCF_011004845.1_fEsoLuc1.pri_rna.fna.gz
+
+umbra
+srun -p high -t 10:00:00 wget https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/016/801/145/GCA_016801145.1_ASM1680114v1/GCA_016801145.1_ASM1680114v1_genomic.gbff.gz
+
+(base) maccamp@farm:~/omy20/dna$ srun -p bigmemm --mem=50G -t 04:00:00 any2fasta GCA_016801145.1_ASM1680114v1_genomic.gbff.gz > umbra.fasta
+
+May need to get gbff and convert 
+https://github.com/Tesla-huang/Scripts/blob/master/gbff2gff.pl
+https://hackmd.io/@AstrobioMike/conv-gb-to-gtf
+
+for f in *fa ; do python ~/OrthoFinder/tools/primary_transcript.py $f ; done ;
+
+doesn't work for these files. Need to get read of these things
+
+>XM_041835741.2 PREDICTED: Coregonus clupeaformis E3 ubiquitin-protein ligase CHFR (LOC121530632), transcript variant X1, mRNA
+>XM_041835742.2 PREDICTED: Coregonus clupeaformis E3 ubiquitin-protein ligase CHFR (LOC121530632), transcript variant X2, mRNA
+>XM_041835743.2 PREDICTED: Coregonus clupeaformis E3 ubiquitin-protein ligase CHFR (LOC121530632), transcript variant X3, mRNA
+>XM_041835745.1 PREDICTED: Coregonus clupeaformis E3 ubiquitin-protein ligase CHFR (LOC121530632), transcript variant X4, mRNA
+>XM_041835746.2 PREDICTED: Coregonus clupeaformis E3 ubiquitin-protein ligase CHFR (LOC121530632), transcript variant X5, mRNA
+>XM_041901301.2 PREDICTED: Coregonus clupeaformis E3 ubiquitin-protein ligase CHFR (LOC121585003), transcript variant X1, mRNA
+>XM_041901302.2 PREDICTED: Coregonus clupeaformis E3 ubiquitin-protein ligase CHFR (LOC121585003), transcript variant X2, mRNA
+
+
+Excluding  like so:
+(base) maccamp@farm:~/omy20/dna$ grep "transcript variant X[2-9]\|X[1-9][0-9]," e-luc.fna | perl -pe 's/^>//g' > pike-to-exclude.txt
+(base) maccamp@farm:~/omy20/dna$ wc -l pike-to-exclude.txt 
+35321 pike-to-exclude.txt
+
+
+Want X1
+ grep "^>" e-luc.fna | grep -v "transcript variant X[2-9]\|X[1-9][0-9]," | perl -pe 's/^>//g' | cut -f 1 -d ' ' > pike-to-include
+ 
+ (base) maccamp@farm:~/omy20/dna$ wc -l pike-to-include 
+28399!!!
+
+ grep ">" primary_transcripts/e-luc.fna | wc -l
+28399
+
+(base) maccamp@farm:~/omy20/dna$ samtools faidx e-luc.fna -r pike-to-include > primary_transcripts/e-luc.fna
+(base) maccamp@farm:~/omy20/dna$ grep ">" primary_transcripts/e-luc.fna | wc -l
+28399
+
+grep "^>" cor-clup.fna | grep -v "transcript variant X[2-9]\|X[1-9][0-9]," | perl -pe 's/^>//g' | cut -f 1 -d ' ' > cor-to-include
+
+50,017
+
+grep ">" ../primary_transcripts/GCF_020615455.1_ASM2061545v1_protein.faa  | wc -l
+43857
+
+(base) maccamp@farm:~/omy20/dna$ samtools faidx cor-clup.fna -r cor-to-include > primary_transcripts/cor-clup.fna
+
+
+grep "^>" salmo-salar.fna | grep -v "transcript variant X[2-9]\|X[1-9][0-9]," | perl -pe 's/^>//g' | cut -f 1 -d ' ' > salmo-to-include
+
+samtools faidx salmo-salar.fna -r salmo-to-include > primary_transcripts/salmo-salar.fna
+
+
+## Need to convert or files to primary transcripts
+
+Gene.99999::CIGENEomyV6.23945.1::g.99999::m.99999.fas
+
+base) Macs-MacBook-Pro-2:mccloud-rrt mac$ ./1303.pl Gene.99999\:\:CIGENEomyV6.23945.1\:\:g.99999\:\:m.99999.fas  | grep 75219 -A 1
+>M075219-Gene.99999
+ATGATGGAAGCCCAGTCGGCATCTCTAGATGAGTACCCGGAGGTAGATCAGGTCTTGGTGCAGATGCGCGTGGGAGCAGATGTGGAGGGGGATCCGGAGCAGAGTCTGACCGAGGGAAGCGAGGGGGGAGCAGGCAGCCCCTCTGCCATGCAGCCCCAGATGCCCATGGACACAGACAAGCAGGCCATCTACAGGCACCCCCTGTTCCCTCTGCTGGCCCTGCTCTTTGAGAAGTGTGAGCAGTCGACTCAGAGCTCGGACTGCGTCAGCTCTGCCAGCTTCAACGTGGACATTGAGAACTTTGTCCGCAGCCAGAAGAAAGAGGGCAAGGGCTTCTTCTGTGAYGACCCAGACGTGGACAACCTGATGGTGAAGGCCATCCAGGTGCTGCGTATCCACCTCCTGGAGCTGGAGAAAGTGAGCGACTTGTGTAAGGACTTCTGTAGCCGCTACATCGCCTGCCTGCGCACCAAGATGAACAGTGAGACCCTGCTGAGTGGAGGAGAAACTGACAGCCCCTGTTCCCCTGTCCAGATACAGACCTCCAGCCCACTCACAGGAACCCTCAGCCCTCAAGGCATTGTGATGTCAGCCTCGGCCCTGCAGCAAGGCAACGTTACCCTGACAACAGTCAATTCTGCTGGCCAAGTGTTAGCAGGTATGTCTCCGTGGCATACCACCTCTACAGGTGGTACAGTGTACCAGCCCATCACAGTAGTCACTCCTCAGGGACAGGTGGTGGGACAAGCTATCTCACCCCAGACAATACGCATCAACAACACACAGCTCCAGTTGCAGCTCAATCAGGACCTAAGCAGTTTCTTCACCCAGGAGGACAGCTCATCCAAGAGCAACAAGAGGGGGGTCCTGCCCAAATCAGCCACCAACATCATGCGCACCTGGCTCTTCCAACACATAGGGCATCCCTATCCCACAGAGGACGAGAAGAAACAGCTCGCCATACAGACCAACCTGACYCTGCTGCAGGTCAACAACTGGTTCATTAATGCTAGGAGGCGTATCCTYCAGCCCATGATGGACAGCAGTGCTTCAGACACGCCCAAGAGCAGGAAGAGGACTCCCCAGAGCCGGCCCACCCAGCGTTTCTGGCCCATGGCCAACAACGTTGCCTCGGCCGGTGTAGGGCAAGAGGTGGCCATGGACGATGACGTGACCATGGTGACGATGGGCATGAGTGTAGACGAGCTGCAGACGCTGACCTCAGAYGGTGCAACACTGGCCATGCAGCAGGTGATGATGGGAGGACACAGCGAGGAGGAGGAGGGCGAGAGCGAGGAGGAGGAAGAGGAGGAGGAGG---GGGGTGACATGGCCGGATTGGAGTGA
+
+

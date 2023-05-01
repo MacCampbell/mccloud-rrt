@@ -94,7 +94,7 @@ vcftools --gzvcf outputs/1301/test4-omy20.vcf.gz --min-alleles 2 --max-alleles 2
 
 values .2 to .4 keep 402/480 sites at -max-missing. 
 
-Create a phylogeny of non-inversion SNPs and a co-phylogram
+Create a phylogeny of non-inversion SNPs and a co-phylogram>
 
 ```{sh, eval=FALSE}
 angsd -P 4 -b bamlists/test4.bamlist -minInd 43  -out outputs/1301/test4 -minMaf 0.05 -minMapQ 20 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 -doGeno 4 -doPost 1 -postCutoff 0.95 -doVcf 1 -rf homoblocks/non-inversion.txt 
@@ -127,5 +127,23 @@ iqtree -s outputs/1301/omy05.phy -st DNA -m MFP+ASC -bb 1000 -alrt 1000
 
 1886 SNPS
 
+
+## Pulling in more cutthroats
+
+
+```{sh, eval=FALSE}
+angsd -P 4 -b bamlists/testCT.bamlist -minInd 56  -out outputs/1301/testct-omy20 -minMaf 0.05 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 -doGeno 4 -doPost 1 -postCutoff 0.95 -doVcf 1 -r omy20:5446054-18985808
+```
+
+251 sites. 
+
+```{sh, eval=FALSE}
+gunzip  outputs/1301/testct-omy20.geno.gz     
+cat outputs/1301/testct-omy20.geno | perl -pe 's/omy20\t//g' > outputs/1301/testct.geno
+
+  ./105-omy05-haplotyper.pl omy20/omy20-diagnostic.txt outputs/1301/testct.geno bamlists/testCT.bamlist > outputs/1301/testct-genos.txt
+
+
+vcftools --gzvcf outputs/1301/testct-omy20.vcf --min-alleles 2 --max-alleles 2 --max-missing 0.8 --maf 0.05 --out outputs/1301/omy20-filtered --recode 
 
 ``` 
