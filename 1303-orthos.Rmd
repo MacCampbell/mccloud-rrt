@@ -1,0 +1,227 @@
+---
+title: "1303-orthos"
+output: html_document
+date: "2023-05-04"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message=FALSE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+I have a putative set of OrthoLogs
+
+(base) Macs-MacBook-Pro-2:1303 mac$ scp -r farm:~/omy20/salmobase/OrthoFinder/Results_May04/Orthogroups .
+
+```{r}
+orthos<-read_tsv("outputs/1303/Orthogroups/Orthogroups.GeneCount.tsv")
+orthos<-orthos %>% filter(Total==12) %>% filter(Eluc==1) %>%
+  filter(MO75219==2) %>%
+  filter(MO75289==2) %>%
+  filter(Ssal==2) %>%
+  filter(Tthy==2) %>%
+  filter(Upyg==1) %>%
+  filter(`cor-clup`==2)
+```
+
+Initially, 3387 genes have the kind of pattern we want!
+
+Get genes in omy05 and omy20
+
+```{r, eval=FALSE}
+groups<-read_tsv("outputs/1303/Orthogroups/Orthogroups.tsv")
+mine<-groups %>% filter(Orthogroup %in% orthos$Orthogroup)
+write_tsv(mine, file="outputs/1303/myorthos.tsv")
+```
+
+```{r}
+mine<-read_tsv("outputs/1303/myorthos.tsv")
+mine
+```
+
+We have about 310 genes to get from omy20.  Let's see....
+(base) maccamp@farm:~/omy20$ grep omy20 omyV6.gtf  | awk '{ if ($4 > 5446055 && $5 <18985808) { print } }' > omy20-inversion.gtf
+(base) maccamp@farm:~/omy20$ cat omy20-inversion.gtf | cut -f 9 | sort | uniq | cut -f 3 | cut -f 2 -d ' ' | perl -pe 's/"//g' | cut -f 1 -d ':' > omy20-inversion-list.txt
+
+```{r}
+rain<-mine %>% select(Orthogroup,MO75219) %>% separate(MO75219, sep=",",into=c("gene1","gene2"))
+rain$gene2<-gsub(" ","",rain$gene2)
+rain$Gene1<-gsub("M075219-","",rain$gene1)
+rain$Gene2<-gsub("M075219-","",rain$gene2)
+rain
+omy20<-read_tsv("outputs/1303/omy20-inversion-list.txt", col_names = c("Gene"))
+
+```
+
+```{r}
+genes1<-rain %>% filter(Gene1 %in% omy20$Gene) %>% mutate(OMY20gene=Gene1)
+genes2<-rain %>% filter(Gene2 %in% omy20$Gene) %>% mutate(OMY20gene=Gene2)
+
+orth<-bind_rows(genes1, genes2) %>% group_by(Orthogroup) %>% mutate(Count=n()) %>% filter(Count == 1) %>% arrange(Orthogroup)
+orth 
+
+write_tsv(orth, "outputs/1303/omy20-orthogroups.tsv")
+```
+55 genes! 
+(base) Macs-MacBook-Pro-2:1303 mac$ cut -f 1 omy20-orthogroups.tsv | while read line; do grep $line Orthogroups/Orthogroups.tsv >> omy20-gene-list.txt; done;
+
+/Users/mac/github/mccloud-rrt/outputs/1303/align, and getting a couple test genes
+
+mafft OG0002930.fas > OG0002930.afas
+iqtree -m GTR+G -s OG0002930.afas -bb 1000 -redo 
+
+Intersting stuff, should still check to see if the inversion types are different.
+
+Combine afas? Need to specify haplotypes. Sigh. 
+
+Get omy05 genes.
+
+(base) maccamp@farm:~/omy20$ grep omy05 omyV6.gtf  | awk '{ if ($4 > 27001896 && $5 <81791946) { print } }' > omy05-inversion.gtf
+(base) maccamp@farm:~/omy20$ cat omy05-inversion.gtf | cut -f 9 | sort | uniq | cut -f 3 | cut -f 2 -d ' ' | perl -pe 's/"//g' | cut -f 1 -d ':' > omy05-inversion-list.txt
+
+1198 genes!
+```{r}
+omy05<-read_tsv("outputs/1303/omy05-inversion-list.txt", col_names = c("Gene"))
+```
+
+```{r}
+genes105<-rain %>% filter(Gene1 %in% omy05$Gene) %>% mutate(OMY05gene=Gene1)
+genes205<-rain %>% filter(Gene2 %in% omy05$Gene) %>% mutate(OMY05gene=Gene2)
+
+orth05<-bind_rows(genes105, genes205) %>% group_by(Orthogroup) %>% mutate(Count=n()) %>% filter(Count == 1)
+orth05
+
+write_tsv(orth05, "outputs/1303/omy05-orthogroups.tsv")
+```
+
+266 genes
+
+## Set up for divergence time estimation
+Get all the genes
+(base) maccamp@farm:~/mccloud-rrt/outputs/1303$ cut -f 1 omy20-orthogroups.tsv  | while read line; do cp ~/omy20/salmobase/OrthoFinder/Results_May04/Orthogroup_Sequences/$line*fa* .; done;
+
+(base) Macs-MacBook-Pro-2:align mac$ for f in *.fa; do echo `basename $f .fa`; mafft $f > `basename $f .fa`.afas; done;
+
+for f in *.afas; do java -jar ~/BMGE-1.12/BMGE.jar -i $f -t DNA -of $f.trim; done; 
+for f in *trim; do iqtree -m GTR+G -s $f -bb 1000 --redo; done;
+
+Need to have the same names throughout all the fastas to concat in general abd check topologies.. Sigh.
+
+/Users/mac/github/mccloud-rrt/outputs/1303/combine
+python ConcatFasta.py --files 
+
+Orthogroup	OMY20gene   included?
+OG0002748	Gene.280502   Yes
+OG0002855	Gene.278059   Yes
+OG0002930	Gene.281087   Yes
+OG0002943	Gene.276097   Yes
+OG0002998	Gene.275491   Yes
+OG0003036	Gene.279555   Yes
+OG0003126	Gene.277838   Yes
+OG0003145	Gene.277786   Yes
+OG0003202	Gene.280847   Yes
+OG0003215	Gene.281185   Yes
+OG0003292	Gene.280603
+OG0003505	Gene.276272
+OG0003635	Gene.274704
+OG0003692	Gene.280302
+OG0003704	Gene.280000
+OG0003907	Gene.278419
+OG0004006	Gene.275388
+OG0004217	Gene.276931
+OG0004261	Gene.280592
+OG0004394	Gene.275596
+OG0004411	Gene.277511
+OG0004648	Gene.276480
+OG0004854	Gene.276857
+OG0004879	Gene.276166
+OG0005040	Gene.278315
+OG0005056	Gene.278550
+OG0005169	Gene.279643
+OG0005205	Gene.280742
+OG0005220	Gene.276754
+OG0005238	Gene.279699
+OG0005306	Gene.277759
+OG0005320	Gene.278878
+OG0005321	Gene.279634
+OG0005343	Gene.277198
+OG0005365	Gene.274561
+OG0005366	Gene.276919
+OG0005412	Gene.274414
+OG0005440	Gene.277915
+OG0005463	Gene.280705
+OG0005510	Gene.279114
+OG0005518	Gene.276151
+OG0005711	Gene.280564
+OG0005715	Gene.279585
+OG0005716	Gene.279161
+OG0005796	Gene.277781
+OG0005976	Gene.275293
+OG0006041	Gene.280627
+OG0006112	Gene.278819
+OG0006185	Gene.275127
+OG0006230	Gene.274640
+OG0006313	Gene.280177
+OG0006365	Gene.278822
+OG0006380	Gene.274728
+OG0006440	Gene.276845
+OG0006447	Gene.278217
+
+
+catfasta2phyml.pl -s *afas.trim > concat.phy 2> partitions.txt
+
+(base) Macs-MacBook-Pro-2:combine mac$ iqtree -s concat.fasta -m GTR+G -bb 1000 -redo
+
+(base) maccamp@farm:~/mccloud-rrt/outputs/1303/gene01$ srun -p high --nodes=1 --ntasks=1 --cpus-per-task=4 -t 12:00:00 mb gene01.nex > std.out 2>std.err &
+
+Need some may to generate many separate mb files and run.
+
+in outputs/1303/ten-genes  We have 10 *afas.trim 
+
+
+## omy05
+(base) maccamp@farm:~/mccloud-rrt/outputs/1303/omy05$ cut -f 1 ~/omy20/omy05-orthogroups.tsv | while read line; do cp ~/omy20/salmobase/OrthoFinder/Results_May04/Orthogroup_Sequences/$line*fa* .; done;
+
+copy locally to /Users/mac/github/mccloud-rrt/outputs/1303/omy05/align
+   
+then:
+
+for f in *.fa; do echo `basename $f .fa`; mafft $f > `basename $f .fa`.afas; done;
+
+for f in *.afas; do java -jar ~/BMGE-1.12/BMGE.jar -i $f -t DNA -of $f.trim; done;
+
+for f in *trim; do iqtree -m GTR+G -s $f -bb 1000 --redo; done;
+
+```{r}
+head(orth05, n=10) %>% select(Orthogroup, OMY05gene)
+```
+
+Let's get these ten genes, renaming to a consistent form for tree inference and checking topology
+
+Orthogroup Omy05Gene Included
+OG0002688	Gene.76373 Yes	
+OG0002751	Gene.70551 Yes		
+OG0003171	Gene.74657 Yes
+OG0003259	Gene.63051 Yes
+OG0003294	Gene.63821 Yes			
+OG0003482	Gene.66273 Yes		
+OG0003529	Gene.72444 Yes			
+OG0003829	Gene.72601 Yes		
+OG0003950	Gene.76526 Yes		
+OG0003983	Gene.69154 Yes	(branch to salmo very long, may not be any difference in omy05 types.)		
+
+catfasta2phyml.pl -s *afas.trim > concat.phy 2> partitions.txt
+for f in *.afas.trim; do seqConverter.pl -d$f -on; done;
+
+Putting on Chinook (base) Macs-MacBook-Pro-2:omy05 mac$ scp -r combine/ chinook:~/dating/combine/
+
+need 1303-batch-mb.sh
+control.nex
+perl -pi -e 's/omy20/omy05/g' control.nex
+
+gene-list.txt chinook00.rcs.alaska.edu % ls | grep afas.trim| perl -pe 's/.afas.trim//' > gene-list.txt
+perl -pi -e 's/nucleotide/DNA/g' *afas.nex
+chinook00.rcs.alaska.edu % bash 1303-batch-mb.sh gene-list.txt 

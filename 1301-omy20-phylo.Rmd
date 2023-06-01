@@ -146,4 +146,22 @@ cat outputs/1301/testct-omy20.geno | perl -pe 's/omy20\t//g' > outputs/1301/test
 
 vcftools --gzvcf outputs/1301/testct-omy20.vcf --min-alleles 2 --max-alleles 2 --max-missing 0.8 --maf 0.05 --out outputs/1301/omy20-filtered --recode 
 
+bcftools reheader --samples bamlists/testLCT-sample-names.txt -o outputs/1301/ctomy20.recode.renamed.vcf outputs/1301/omy20-filtered.recode.vcf
+
+java -jar ~/bin/beagle.27Jan18.7e1.jar gl=outputs/1301/ctomy20.recode.renamed.vcf out=outputs/1301/ctomy20-beagle-imputed > outputs/1301/beagle-impute-stdout.txt 
+
+java -jar ~/bin/beagle.27Jan18.7e1.jar gt=outputs/1301/ctomy20-beagle-imputed.vcf.gz out=outputs/1301/ctomy20-beagle-phased ibd=true ibdcm=0.05 > outputs/1301/omy05-beagle-phase-stdout.txt 
+
+bcftools convert --hapsample --vcf-ids outputs/1301/ctomy20-beagle-phased.vcf.gz  -o outputs/1301/ctomy20-phased
+
+
+#in 1301
+gunzip ctomy20-phased.hap.gz
+cat ctomy20-phased.sample  | perl -pe 's/\s0//g' | perl -pe 's/ /\n/g' > ct-hap-list.txt
+./make-haps.pl ctomy20-phased.hap | ./transpose.pl > ctomy20-seqs.txt
+ paste ct-hap-list.txt ctomy20-seqs.txt  > ctomy.phy
+ 
+  nl -s '_'  ctomy.phy > ctomy-numbered.phy
+
+iqtree -s outputs/1301/ctomy-numbered.phy -st DNA -m MFP+ASC -bb 1000 -alrt 1000
 ``` 
